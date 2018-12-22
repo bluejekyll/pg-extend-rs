@@ -1,0 +1,19 @@
+[package]
+name = "pg-extension-sys"
+version = "0.1.0"
+authors = ["Benjamin Fry <benjaminfry@me.com>"]
+edition = "2018"
+
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+debug = true
+
+[dependencies]
+pg-extern-attr = { version = "0.1.0", path = "pg-extern-attr" }
+
+[build-dependencies]
+bindgen = "0.44"
