@@ -1,4 +1,3 @@
-use crate::pg_bool::Bool;
 use crate::pg_sys::{self, Datum, Oid};
 
 pub struct PgDatum(Option<Datum>);

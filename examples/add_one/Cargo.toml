@@ -1,0 +1,12 @@
+[package]
+name = "add-one"
+version = "0.1.0"
+authors = ["Benjamin Fry <benjaminfry@me.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
+pg-extension-sys = { version = "*", path = "../../pg-extension-sys" }

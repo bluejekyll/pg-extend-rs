@@ -1,3 +1,5 @@
+//! only needed for pg v. 10?
+
 use crate::pg_sys::bool_;
 
 const TRUE_: bool_ = 1;

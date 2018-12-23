@@ -1,18 +1,11 @@
 # Rust based postgres extension
 
-to build, get Rust, then:
+The main things provided by this crate are some macros that help with writing Postgres extensions in Rust.
 
-```console
-$> cargo build --release
-...
-```
+The objective (not all these are yet implemented):
 
-then load into postgres
-
-```console
-$> psql $CONN_STR
-postgres=# CREATE FUNCTION add_one(integer) RETURNS integer
- AS 'path/to/crate/target/release/lib_extension_name.dylib', 'add_one' LANGUAGE C STRICT;
-```
- 
-
+- Automatic type conversions, see `PgDatum` and `TryFromPgDatum` to `Into<PgDatum>`
+- `pg_magic` macro for declaring libraries as Postgres extensions
+- `pg_extern` attribute for wrapping Rust functions in Postgres C style definitions
+- *tbd* allocator that uses Postgres allocators
+- *tbs* panic handlers for conversion into Postgres errors

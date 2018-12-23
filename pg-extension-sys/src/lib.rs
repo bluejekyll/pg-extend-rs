@@ -1,26 +1,27 @@
 #[macro_use]
-extern crate pg_extern_macro;
+extern crate pg_extern_attr;
 
+
+#[cfg(feature = "pg_v10")]
 pub mod pg_bool;
+
 pub mod pg_datum;
 pub mod pg_sys;
 
 use std::os::raw::c_uint;
 
-use crate::pg_datum::TryFromPgDatum;
-
 #[macro_export]
-macro_rules! pg_module {
+macro_rules! pg_magic {
     (version: $vers:expr) => {
         #[allow(non_upper_case_globals)]
         static mut Pg_magic_data: pg_sys::Pg_magic_struct = pg_sys::Pg_magic_struct {
-            len: 0 as std::os::raw::c_int,
-            version: $vers as std::os::raw::c_int,
-            funcmaxargs: 100,
-            indexmaxkeys: 32,
-            namedatalen: 64,
-            float4byval: 1,
-            float8byval: 1,
+            len: 0,
+            version: 0,
+            funcmaxargs: 0,
+            indexmaxkeys: 0,
+            namedatalen: 0,
+            float4byval: 0,
+            float8byval: 0,
         };
 
         #[no_mangle]
@@ -49,29 +50,16 @@ macro_rules! pg_module {
     };
 }
 
-pg_module!(version: pg_sys::PG_VERSION_NUM);
-
+/// Returns the slice of Datums, and a parallel slice which specifies if the Datum passed in is (SQL) NULL
 pub unsafe fn get_args(
     func_call_info: &pg_sys::FunctionCallInfoData,
-) -> (&[pg_sys::Datum], &[pg_sys::bool_]) {
+) -> (&[pg_sys::Datum], &[bool]) {
+    use crate::pg_datum::TryFromPgDatum;
+
     let num_args = func_call_info.nargs as usize;
-    let args: &[pg_sys::Datum] = std::slice::from_raw_parts(func_call_info.arg, num_args);
-    let args_null: &[pg_sys::bool_] = std::slice::from_raw_parts(func_call_info.argnull, num_args);
+
+    let args: &[pg_sys::Datum] = &func_call_info.arg[..num_args];
+    let args_null: &[bool] = &func_call_info.argnull[..num_args];
 
     (args, args_null)
-}
-
-#[pg_extern]
-fn add_one(value: i32) -> i32 {
-    (value + 1)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_add_one() {
-        assert_eq!(add_one(1), 2);
-    }
 }

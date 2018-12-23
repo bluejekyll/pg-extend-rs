@@ -6,19 +6,22 @@ use std::path::PathBuf;
 fn main() {
     //println!("cargo:rustc-link-lib=postgres");
 
+    let pg_include = env::var("PG_INCLUDE_PATH").expect("failed to read PG_INCLUDE_PATH");
+
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
     // the resulting bindings.
     let bindings = bindgen::Builder::default()
-        .clang_arg("-I../postgresql/src/include/")
+        .clang_arg(format!("-I{}",pg_include))
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
         .rustfmt_bindings(true)
         // FIXME: add this back
-        .layout_tests(false)
+        .layout_tests(false);
+    
         // Finish the builder and generate the bindings.
-        .generate()
+    let bindings = bindings.generate()
         // Unwrap the Result and panic on failure.
         .expect("Unable to generate bindings");
 
