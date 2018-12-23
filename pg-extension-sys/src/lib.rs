@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate pg_extern_attr;
-
 
 #[cfg(feature = "pg_v10")]
 pub mod pg_bool;

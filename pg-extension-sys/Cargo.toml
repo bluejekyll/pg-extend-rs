@@ -6,9 +6,6 @@ edition = "2018"
 
 build = "build.rs"
 
-[lib]
-crate-type = ["cdylib"]
-
 [dependencies]
 pg-extern-attr = { version = "0.1.0", path = "../pg-extern-attr" }
 

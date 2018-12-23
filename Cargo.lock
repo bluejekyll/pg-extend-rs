@@ -1,4 +1,12 @@
 [[package]]
+name = "add-one"
+version = "0.1.0"
+dependencies = [
+ "pg-extension-sys 0.1.0",
+ "pg-extern-attr 0.1.0",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -44,10 +44,10 @@ fn extract_arg_data(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
         let arg_error = format!("unsupported function argument type for {}", arg_name);
 
         let get_arg = quote!(
-            let #arg_name: #arg_type = crate::pg_datum::TryFromPgDatum::try_from(
-                crate::pg_datum::PgDatum::from_raw(
+            let #arg_name: #arg_type = pg_extension_sys::pg_datum::TryFromPgDatum::try_from(
+                pg_extension_sys::pg_datum::PgDatum::from_raw(
                     args[#i],
-                    crate::pg_bool::Bool::from_raw(args_null[#i])
+                    args_null[#i]
                 ),
             )
             .expect(#arg_error);
@@ -89,7 +89,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 
     // create the postgres info
     let func_info = quote!(
-        use crate::pg_sys::Pg_finfo_record;
+        use pg_extension_sys::pg_sys::Pg_finfo_record;
 
         #[no_mangle]
         pub extern "C" fn #func_info_name () -> &'static Pg_finfo_record {
@@ -108,22 +108,22 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let func_wrapper = quote!(
         #[no_mangle]
         pub extern "C" fn #func_wrapper_name (func_call_info: pg_sys::FunctionCallInfo) -> pg_sys::Datum {
-            let func_info: &mut crate::pg_sys::FunctionCallInfoData = unsafe {
+            let func_info: &mut pg_extension_sys::pg_sys::FunctionCallInfoData = unsafe {
                 func_call_info
                     .as_mut()
                     // FIXME: convert panics to Errors
                     .expect("func_call_info was NULL, sorry for killing your DB")
             };
 
-            let (args, args_null) = unsafe { crate::get_args(func_info) };
+            let (args, args_null) = unsafe { pg_extension_sys::get_args(func_info) };
 
             #get_args_from_datums
 
             let result = #func_name(#func_params);
-            let result = crate::pg_datum::PgDatum::from(result);
+            let result = pg_extension_sys::pg_datum::PgDatum::from(result);
 
             if result.is_null() {
-                func_info.isnull = crate::pg_bool::Bool::from(true).into_bool();
+                func_info.isnull = true;
             }
 
             result.into_datum()

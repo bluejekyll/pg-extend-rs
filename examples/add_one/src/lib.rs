@@ -1,6 +1,8 @@
 extern crate pg_extern_attr;
+extern crate pg_extension_sys;
 
 use pg_extern_attr::pg_extern;
+use pg_extension_sys::{pg_sys, pg_magic};
 
 /// This tells Postges this library is a Postgres extension
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
