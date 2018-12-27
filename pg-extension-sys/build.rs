@@ -4,9 +4,13 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    //println!("cargo:rustc-link-lib=postgres");
+    let pg_include = env::var("PG_INCLUDE_PATH").expect("set environment variable PG_INCLUDE_PATH to the Postgres install include dir, e.g. /var/lib/pgsql/include/server");
 
-    let pg_include = env::var("PG_INCLUDE_PATH").expect("failed to read PG_INCLUDE_PATH");
+    // println!("cargo:rustc-link-search=/Users/benjaminfry/Downloads/postgresql-11.1/src/common");
+    // println!("cargo:rustc-link-lib=pgcommon_srv");
+
+    // pkg_config::Config::new().atleast_version("11.1").probe("libpq").unwrap();
+    // pkg_config::Config::new().atleast_version("11.1").probe("libecpg").unwrap();
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for

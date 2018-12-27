@@ -8,4 +8,21 @@ The objective (not all these are yet implemented):
 - `pg_magic` macro for declaring libraries as Postgres extensions
 - `pg_extern` attribute for wrapping Rust functions in Postgres C style definitions
 - *tbd* allocator that uses Postgres allocators
-- *tbs* panic handlers for conversion into Postgres errors
+- *tbd* panic handlers for conversion into Postgres errors
+- *tbd* integrate postgres error logs with `log`
+
+## Building
+
+First install Postgres. Once installed, this environment variable is required:
+
+`PG_INCLUDE_PATH=[/path/to/postgres]/include/server # e.g. /usr/local/pgsql/include/server`
+
+This environment variable is also required for the dynamic libraries to compile:
+
+`RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"`
+
+This informs the linker that some of the symbols for postgres won't be available until runtime on the dynamic library load.
+
+## Examples
+
+- [add_one](examples/add_one)

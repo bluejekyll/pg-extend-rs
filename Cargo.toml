@@ -2,4 +2,9 @@
 debug = true
 
 [workspace]
-members = ["pg-extension-sys", "pg-extern-attr", "examples/add_one"]
+members = [
+    "pg-extension-sys", 
+    "pg-extern-attr", 
+    "examples/add_one", 
+    "examples/panicking"
+]

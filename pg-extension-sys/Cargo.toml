@@ -5,9 +5,11 @@ authors = ["Benjamin Fry <benjaminfry@me.com>"]
 edition = "2018"
 
 build = "build.rs"
+#rustc-flags = "-C link-arg=undefined=suppress"
 
 [dependencies]
 pg-extern-attr = { version = "0.1.0", path = "../pg-extern-attr" }
 
 [build-dependencies]
 bindgen = "0.45"
+# pkg-config = "0.3"
