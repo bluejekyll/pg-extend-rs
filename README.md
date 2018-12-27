@@ -10,7 +10,8 @@ The objective (not all these are yet implemented):
 - panic handlers for conversion into Postgres errors
 - *tbd* allocator that uses Postgres allocators
 - *tbd* integrate postgres error logs with `log`
-- *tbd* generators 
+- *tbd* support all Datum types
+- *tbd* support table like returns and manipulation
 
 ## Building
 

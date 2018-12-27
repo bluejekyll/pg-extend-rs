@@ -79,10 +79,10 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         panic!("variadic functions (...) not supported")
     }
 
-    let generics = &func_decl.generics;
+    //let generics = &func_decl.generics;
     let inputs = &func_decl.inputs;
-    let result = &func_decl.output;
-    let func_block = &func.block;
+    //let result = &func_decl.output;
+    //let func_block = &func.block;
 
     // declare the function
     let mut function = item.clone().into_token_stream();

@@ -7,18 +7,23 @@
 
 #[warn(missing_docs)]
 
+pub mod pg_alloc;
 #[cfg(feature = "pg_v10")]
 pub mod pg_bool;
-
 pub mod pg_datum;
-pub mod pg_sys;
 pub mod pg_error;
+pub mod pg_sys;
 
 #[macro_export]
 macro_rules! pg_magic {
     (version: $vers:expr) => {
+        // Set the global allocator to use postgres' allocator, which guarantees all memory freed at
+        //   transaction close.
+        #[global_allocator]
+        static GLOBAL: pg_extend::pg_alloc::PgAllocator = pg_extend::pg_alloc::PgAllocator;
+
         #[allow(non_upper_case_globals)]
-        static mut Pg_magic_data: pg_sys::Pg_magic_struct = pg_sys::Pg_magic_struct {
+        static mut Pg_magic_data: pg_extend::pg_sys::Pg_magic_struct = pg_extend::pg_sys::Pg_magic_struct {
             len: 0,
             version: 0,
             funcmaxargs: 0,
@@ -32,7 +37,7 @@ macro_rules! pg_magic {
         #[allow(non_snake_case)]
         #[allow(unused)]
         #[link_name = "Pg_magic_func"]
-        pub extern "C" fn Pg_magic_func() -> &'static pg_sys::Pg_magic_struct {
+        pub extern "C" fn Pg_magic_func() -> &'static pg_extend::pg_sys::Pg_magic_struct {
             use pg_extend::{pg_sys, register_panic_handler};
             use std::mem::size_of;
             use std::os::raw::c_int;
