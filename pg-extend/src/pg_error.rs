@@ -5,13 +5,20 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
+//! Error reporting support for Postgres.
+
 use std::os::raw::{c_int, c_char};
 
 use crate::pg_sys;
 
 const ERR_DOMAIN: &[u8] = b"RUST\0";
 
-
+/// Postgres logging Levels
+/// 
+/// # Note
+/// 
+/// Some of these levels effect the status of the connection and transaction in Postgres. Specifically, >= Error will cause
+///   the connection and transaction to fail and be reset.
 #[derive(Clone, Copy)]
 pub enum Level {
     /// Debugging messages, in categories of 5 decreasing detail.

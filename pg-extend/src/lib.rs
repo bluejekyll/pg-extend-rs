@@ -5,7 +5,11 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-#[warn(missing_docs)]
+//! Postgres extension library for Rust.
+
+#![warn(missing_docs)]
+
+extern crate no_panic;
 
 pub mod pg_alloc;
 #[cfg(feature = "pg_v10")]
@@ -14,6 +18,9 @@ pub mod pg_datum;
 pub mod pg_error;
 pub mod pg_sys;
 
+/// A macro for marking a library compatible with the Postgres extension framework.
+/// 
+/// This macro was initially inspired from the `pg_module` macro in https://github.com/thehydroimpulse/postgres-extension.rs
 #[macro_export]
 macro_rules! pg_magic {
     (version: $vers:expr) => {
