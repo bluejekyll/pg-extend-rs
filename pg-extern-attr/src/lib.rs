@@ -51,8 +51,8 @@ fn extract_arg_data(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
         let arg_error = format!("unsupported function argument type for {}", arg_name);
 
         let get_arg = quote!(
-            let #arg_name: #arg_type = pg_extension_sys::pg_datum::TryFromPgDatum::try_from(
-                pg_extension_sys::pg_datum::PgDatum::from_raw(
+            let #arg_name: #arg_type = pg_extend::pg_datum::TryFromPgDatum::try_from(
+                pg_extend::pg_datum::PgDatum::from_raw(
                     args[#i],
                     args_null[#i]
                 ),
@@ -96,7 +96,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 
     // create the postgres info
     let func_info = quote!(
-        use pg_extension_sys::pg_sys::Pg_finfo_record;
+        use pg_extend::pg_sys::Pg_finfo_record;
 
         #[no_mangle]
         pub extern "C" fn #func_info_name () -> &'static Pg_finfo_record {
@@ -117,13 +117,13 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         pub extern "C" fn #func_wrapper_name (func_call_info: pg_sys::FunctionCallInfo) -> pg_sys::Datum {
             use std::panic;
 
-            let func_info: &mut pg_extension_sys::pg_sys::FunctionCallInfoData = unsafe {
+            let func_info: &mut pg_extend::pg_sys::FunctionCallInfoData = unsafe {
                 func_call_info
                     .as_mut()
                     .expect("func_call_info was unexpectedly NULL")
             };
 
-            let (args, args_null) = unsafe { pg_extension_sys::get_args(func_info) };
+            let (args, args_null) = unsafe { pg_extend::get_args(func_info) };
 
             // guard the Postgres process against the panic, and give us an oportunity to cleanup
             let panic_result = panic::catch_unwind(|| {
@@ -135,7 +135,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                 let result = #func_name(#func_params);
 
                 // arbitrary Rust code could panic, so this is guarded
-                pg_extension_sys::pg_datum::PgDatum::from(result)
+                pg_extend::pg_datum::PgDatum::from(result)
             });
 
             // see if we caught a panic

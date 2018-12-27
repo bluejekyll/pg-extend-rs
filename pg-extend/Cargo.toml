@@ -1,5 +1,5 @@
 [package]
-name = "pg-extension-sys"
+name = "pg-extend"
 version = "0.1.0"
 authors = ["Benjamin Fry <benjaminfry@me.com>"]
 edition = "2018"
@@ -8,8 +8,8 @@ description = """
 A library for extending Postgres with Rust.
 """
 
-documentation = "https://docs.rs/pg-extension-sys"
-repository = "https://github.com/bluejekyll/pg-extension-sys"
+documentation = "https://docs.rs/pg-extend"
+repository = "https://github.com/bluejekyll/pg-extend"
 
 readme = "../README.md"
 license = "MIT/Apache-2.0"

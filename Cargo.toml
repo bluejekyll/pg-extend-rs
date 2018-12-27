@@ -3,7 +3,7 @@ debug = true
 
 [workspace]
 members = [
-    "pg-extension-sys", 
+    "pg-extend", 
     "pg-extern-attr", 
     "examples/add_one", 
     "examples/panicking"

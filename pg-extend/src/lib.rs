@@ -33,7 +33,7 @@ macro_rules! pg_magic {
         #[allow(unused)]
         #[link_name = "Pg_magic_func"]
         pub extern "C" fn Pg_magic_func() -> &'static pg_sys::Pg_magic_struct {
-            use pg_extension_sys::{pg_sys, register_panic_handler};
+            use pg_extend::{pg_sys, register_panic_handler};
             use std::mem::size_of;
             use std::os::raw::c_int;
 

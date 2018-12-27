@@ -9,4 +9,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
-pg-extension-sys = { version = "*", path = "../../pg-extension-sys" }
+pg-extend = { version = "*", path = "../../pg-extend" }
