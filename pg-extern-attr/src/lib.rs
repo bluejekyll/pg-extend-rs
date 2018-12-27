@@ -95,11 +95,9 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 
     // create the postgres info
     let func_info = quote!(
-        use pg_extend::pg_sys::Pg_finfo_record;
-
         #[no_mangle]
-        pub extern "C" fn #func_info_name () -> &'static Pg_finfo_record {
-            const my_finfo: Pg_finfo_record = Pg_finfo_record { api_version: 1 };
+        pub extern "C" fn #func_info_name () -> &'static pg_extend::pg_sys::Pg_finfo_record {
+            const my_finfo: pg_extend::pg_sys::Pg_finfo_record = pg_extend::pg_sys::Pg_finfo_record { api_version: 1 };
             &my_finfo
         }
     );
@@ -113,7 +111,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     // wrap the original function in a pg_wrapper function
     let func_wrapper = quote!(
         #[no_mangle]
-        pub extern "C" fn #func_wrapper_name (func_call_info: pg_sys::FunctionCallInfo) -> pg_sys::Datum {
+        pub extern "C" fn #func_wrapper_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
             use std::panic;
 
             let func_info: &mut pg_extend::pg_sys::FunctionCallInfoData = unsafe {
@@ -122,10 +120,11 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                     .expect("func_call_info was unexpectedly NULL")
             };
 
-            let (args, args_null) = unsafe { pg_extend::get_args(func_info) };
-
             // guard the Postgres process against the panic, and give us an oportunity to cleanup
             let panic_result = panic::catch_unwind(|| {
+                // extract the argument list
+                let (args, args_null) = pg_extend::get_args(func_info);
+
                 // arbitrary Datum conversions occur here, and could panic
                 //   so this is inside the catch unwind
                 #get_args_from_datums
@@ -141,9 +140,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
             match panic_result {
                 Ok(result) => {
                     // in addition to the null case, we should handle result types probably
-                    if result.is_null() {
-                        func_info.isnull = true;
-                    }
+                    func_info.isnull = result.is_null();
 
                     // return the datum
                     result.into_datum()

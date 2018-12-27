@@ -65,7 +65,7 @@ where
     T2: Into<Vec<u8>>,
     T3: Into<Vec<u8>>,
 {
-    use std::ffi::{CString};
+    use std::ffi::CString;
 
     // convert to C ffi
     let file = CString::new(file.into()).expect("this should not fail: file");
