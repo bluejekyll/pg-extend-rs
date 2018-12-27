@@ -1,25 +1,9 @@
+// Copyright 2018 Benjamin Fry <benjaminfry@me.com>
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
 #include "postgres.h"
 #include "executor/spi.h"
-
-// //#include "executor/executor.h"
-// //#include "oid_ext.h"
-// #include "pg_config_manual.h"
-// //#include "postgres.h"
-// #include "postgres_ext.h"
-// //#include "utils/nabstime.h"
-// //#include "utils/date.h"
-// //#include "utils/timestamp.h"
-// //#include "fmgr.h"
-// //#include "executor/spi.h"
-
-//#include "server/postgres.h"
-//#include "elog.h"
-//#include "executor/executor.h"
-//#include "oid_ext.h"
-// #include "c.h"
-// #include "pg_config_manual.h"
-// #include "postgres_ext.h"
-// #include "utils/nabstime.h"
-// #include "utils/date.h"
-// #include "utils/timestamp.h"
-// #include "fmgr.h"

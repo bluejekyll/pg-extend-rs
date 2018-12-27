@@ -1,6 +1,6 @@
 # Rust based postgres extension
 
-add_one example
+All the examples of 
 
 to build, get Rust, then (the RUSTFLAGS is required to build the library):
 

@@ -4,12 +4,21 @@ version = "0.1.0"
 authors = ["Benjamin Fry <benjaminfry@me.com>"]
 edition = "2018"
 
+description = """
+A library for extending Postgres with Rust.
+"""
+
+documentation = "https://docs.rs/pg-extension-sys"
+repository = "https://github.com/bluejekyll/pg-extension-sys"
+
+readme = "../README.md"
+license = "MIT/Apache-2.0"
+
 build = "build.rs"
-#rustc-flags = "-C link-arg=undefined=suppress"
+#rustc-flags = "-C link-arg=undefineddynamic_lookup"
 
 [dependencies]
 pg-extern-attr = { version = "0.1.0", path = "../pg-extern-attr" }
 
 [build-dependencies]
 bindgen = "0.45"
-# pkg-config = "0.3"

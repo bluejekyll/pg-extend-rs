@@ -1,3 +1,11 @@
+// Copyright 2018 Benjamin Fry <benjaminfry@me.com>
+//
+// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
+// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
+// http://opensource.org/licenses/MIT>, at your option. This file may not be
+// copied, modified, or distributed except according to those terms.
+
+#[warn(missing_docs)]
 
 #[cfg(feature = "pg_v10")]
 pub mod pg_bool;
@@ -5,8 +13,6 @@ pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_sys;
 pub mod pg_error;
-
-use std::os::raw::c_uint;
 
 #[macro_export]
 macro_rules! pg_magic {
@@ -39,11 +45,11 @@ macro_rules! pg_magic {
                 Pg_magic_data = pg_sys::Pg_magic_struct {
                     len: size_of::<pg_sys::Pg_magic_struct>() as c_int,
                     version: $vers as std::os::raw::c_int / 100,
-                    funcmaxargs: pg_sys::FUNC_MAX_ARGS as std::os::raw::c_int,
-                    indexmaxkeys: pg_sys::INDEX_MAX_KEYS as std::os::raw::c_int,
-                    namedatalen: pg_sys::NAMEDATALEN as std::os::raw::c_int,
-                    float4byval: pg_sys::USE_FLOAT4_BYVAL as std::os::raw::c_int,
-                    float8byval: pg_sys::USE_FLOAT8_BYVAL as std::os::raw::c_int,
+                    funcmaxargs: pg_sys::FUNC_MAX_ARGS as c_int,
+                    indexmaxkeys: pg_sys::INDEX_MAX_KEYS as c_int,
+                    namedatalen: pg_sys::NAMEDATALEN as c_int,
+                    float4byval: pg_sys::USE_FLOAT4_BYVAL as c_int,
+                    float8byval: pg_sys::USE_FLOAT8_BYVAL as c_int,
                 };
 
                 &Pg_magic_data
@@ -56,8 +62,6 @@ macro_rules! pg_magic {
 pub fn get_args(
     func_call_info: &pg_sys::FunctionCallInfoData,
 ) -> (&[pg_sys::Datum], &[bool]) {
-    use crate::pg_datum::TryFromPgDatum;
-
     let num_args = func_call_info.nargs as usize;
 
     let args: &[pg_sys::Datum] = &func_call_info.arg[..num_args];
@@ -68,14 +72,14 @@ pub fn get_args(
 
 /// This will replace the current panic_handler
 pub fn register_panic_handler() {
-    use std::panic::{self, PanicInfo};
+    use std::panic;
     use crate::pg_error;
 
+    // set (and replace the existing) panic handler, this will tell Postgres that the call failed
+    //   a level of Fatal will force the DB connection to be killed.
     panic::set_hook(Box::new(|info| {
         let level = pg_error::Level::Fatal;
 
-        // FIXME: add this back when postgres linkage is fixed
-        pg_error::log(level, file!(), line!(), module_path!(), format!("panic in rust extension: {:?}", info));
-        // eprintln!("Panic in extension: {}", info);
+        pg_error::log(level, file!(), line!(), module_path!(), format!("panic in Rust extension: {}", info));
     }));
 }

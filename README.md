@@ -7,9 +7,10 @@ The objective (not all these are yet implemented):
 - Automatic type conversions, see `PgDatum` and `TryFromPgDatum` to `Into<PgDatum>`
 - `pg_magic` macro for declaring libraries as Postgres extensions
 - `pg_extern` attribute for wrapping Rust functions in Postgres C style definitions
+- panic handlers for conversion into Postgres errors
 - *tbd* allocator that uses Postgres allocators
-- *tbd* panic handlers for conversion into Postgres errors
 - *tbd* integrate postgres error logs with `log`
+- *tbd* generators 
 
 ## Building
 
