@@ -8,10 +8,11 @@ The objective (not all these are yet implemented):
 - `pg_magic` macro for declaring libraries as Postgres extensions
 - `pg_extern` attribute for wrapping Rust functions in Postgres C style definitions
 - panic handlers for conversion into Postgres errors
-- *tbd* allocator that uses Postgres allocators
+- allocator that uses Postgres `palloc` allocator and `pfree`
 - *tbd* integrate postgres error logs with `log`
 - *tbd* support all Datum types
 - *tbd* support table like returns and manipulation
+- *tbd* generators for the psql scripts to load functions
 
 ## Building
 
