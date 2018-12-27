@@ -16,7 +16,6 @@ extern crate quote;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use syn::parse::ParseStream;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 

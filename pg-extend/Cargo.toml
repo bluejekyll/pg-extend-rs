@@ -17,8 +17,5 @@ license = "MIT/Apache-2.0"
 build = "build.rs"
 #rustc-flags = "-C link-arg=undefineddynamic_lookup"
 
-[dependencies]
-pg-extern-attr = { version = "0.1.0", path = "../pg-extern-attr" }
-
 [build-dependencies]
 bindgen = "0.45"

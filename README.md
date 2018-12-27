@@ -26,4 +26,5 @@ This informs the linker that some of the symbols for postgres won't be available
 
 ## Examples
 
-- [add_one](examples/add_one)
+- [add_one](https://github.com/bluejekyll/pg-extend-rs/tree/master/examples/add_one)
+- [panicking](https://github.com/bluejekyll/pg-extend-rs/tree/master/examples/panicking)

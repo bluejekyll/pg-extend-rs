@@ -222,7 +222,6 @@ name = "pg-extend"
 version = "0.1.0"
 dependencies = [
  "bindgen 0.45.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pg-extern-attr 0.1.0",
 ]
 
 [[package]]
