@@ -29,17 +29,6 @@ macro_rules! pg_magic {
         #[global_allocator]
         static GLOBAL: pg_extend::pg_alloc::PgAllocator = pg_extend::pg_alloc::PgAllocator;
 
-        #[allow(non_upper_case_globals)]
-        static mut Pg_magic_data: pg_extend::pg_sys::Pg_magic_struct = pg_extend::pg_sys::Pg_magic_struct {
-            len: 0,
-            version: 0,
-            funcmaxargs: 0,
-            indexmaxkeys: 0,
-            namedatalen: 0,
-            float4byval: 0,
-            float8byval: 0,
-        };
-
         #[no_mangle]
         #[allow(non_snake_case)]
         #[allow(unused)]
@@ -49,23 +38,22 @@ macro_rules! pg_magic {
             use std::mem::size_of;
             use std::os::raw::c_int;
 
+            const my_magic: pg_extend::pg_sys::Pg_magic_struct = pg_sys::Pg_magic_struct {
+                len: size_of::<pg_sys::Pg_magic_struct>() as c_int,
+                version: $vers as std::os::raw::c_int / 100,
+                funcmaxargs: pg_sys::FUNC_MAX_ARGS as c_int,
+                indexmaxkeys: pg_sys::INDEX_MAX_KEYS as c_int,
+                namedatalen: pg_sys::NAMEDATALEN as c_int,
+                float4byval: pg_sys::USE_FLOAT4_BYVAL as c_int,
+                float8byval: pg_sys::USE_FLOAT8_BYVAL as c_int,
+            };
+
             // TODO: is this a good idea here?
             // register panic_handler
             register_panic_handler();
 
-            unsafe {
-                Pg_magic_data = pg_sys::Pg_magic_struct {
-                    len: size_of::<pg_sys::Pg_magic_struct>() as c_int,
-                    version: $vers as std::os::raw::c_int / 100,
-                    funcmaxargs: pg_sys::FUNC_MAX_ARGS as c_int,
-                    indexmaxkeys: pg_sys::INDEX_MAX_KEYS as c_int,
-                    namedatalen: pg_sys::NAMEDATALEN as c_int,
-                    float4byval: pg_sys::USE_FLOAT4_BYVAL as c_int,
-                    float8byval: pg_sys::USE_FLOAT8_BYVAL as c_int,
-                };
-
-                &Pg_magic_data
-            }
+            // return the magic
+            &my_magic
         }
     };
 }
