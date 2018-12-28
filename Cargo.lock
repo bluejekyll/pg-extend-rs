@@ -2,7 +2,7 @@
 name = "add-one"
 version = "0.1.0"
 dependencies = [
- "pg-extend 0.2.0",
+ "pg-extend 0.2.1",
  "pg-extern-attr 0.2.2",
 ]
 
@@ -218,7 +218,7 @@ dependencies = [
 name = "panicking"
 version = "0.1.0"
 dependencies = [
- "pg-extend 0.2.0",
+ "pg-extend 0.2.1",
  "pg-extern-attr 0.2.2",
 ]
 
@@ -229,7 +229,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "pg-extend"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bindgen 0.45.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "no-panic 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
