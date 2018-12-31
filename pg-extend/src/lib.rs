@@ -16,6 +16,7 @@ pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
 pub mod pg_sys;
+pub mod pg_type;
 
 /// A macro for marking a library compatible with the Postgres extension framework.
 /// 
@@ -26,6 +27,7 @@ macro_rules! pg_magic {
         // Set the global allocator to use postgres' allocator, which guarantees all memory freed at
         //   transaction close.
         #[global_allocator]
+        #[cfg(feature = "pg_allocator")]
         static GLOBAL: pg_extend::pg_alloc::PgAllocator = pg_extend::pg_alloc::PgAllocator;
 
         #[no_mangle]

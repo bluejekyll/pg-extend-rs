@@ -28,5 +28,9 @@ This informs the linker that some of the symbols for postgres won't be available
 
 ## Examples
 
-- [add_one](https://github.com/bluejekyll/pg-extend-rs/tree/master/examples/add_one)
+- [adding](https://github.com/bluejekyll/pg-extend-rs/tree/master/examples/adding)
 - [panicking](https://github.com/bluejekyll/pg-extend-rs/tree/master/examples/panicking)
+
+## Features
+
+To use the postgres allocator, the feature `pg_allocator` must be defined and enabled in the implementing crate.

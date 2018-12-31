@@ -13,5 +13,5 @@ then load into postgres
 
 ```console
 $> psql $CONN_STR
-postgres=# CREATE FUNCTION add_one(integer) RETURNS integer AS 'path/to/crate/target/release/libadd_one.dylib', 'pg_add_one' LANGUAGE C STRICT;
+postgres=# CREATE FUNCTION add_one(integer) RETURNS integer AS 'path/to/crate/target/release/libadding.dylib', 'pg_add_one' LANGUAGE C STRICT;
 ```

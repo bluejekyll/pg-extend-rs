@@ -4,8 +4,15 @@ version = "0.1.0"
 authors = ["Benjamin Fry <benjaminfry@me.com>"]
 edition = "2018"
 
+[features]
+pg_allocator = []
+
 [lib]
 crate-type = ["cdylib"]
+
+[[bin]]
+name = "panicking-stmt"
+path = "src/bin.rs"
 
 [dependencies]
 pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
