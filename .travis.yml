@@ -1,0 +1,50 @@
+sudo: required
+dist: xenial
+language: rust
+
+addons:
+  postgresql: "11"
+  apt:
+    packages:
+      - postgresql-server-dev-11
+
+
+matrix:
+  include:
+    # parallel builds for tests
+    - rust: stable
+      env: NAME=stable
+           PG_BASE_INCLUDE=$(pg_config --includedir)
+           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
+           RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
+           RUST_BACKTRACE=full
+      script:
+        - cargo test
+
+        # macos
+    - os: osx
+      rust: stable
+      env: NAME=macOS
+           PG_BASE_INCLUDE=$(pg_config --includedir)
+           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
+           RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
+           RUST_BACKTRACE=full
+      script: 
+        - cargo test
+
+    # clippy
+    - rust: stable
+      env: NAME=clippy
+           PG_BASE_INCLUDE=$(pg_config --includedir)
+           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
+           RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
+           RUST_BACKTRACE=full
+      before_install:
+        - rustup component add clippy
+      script:
+        - cargo clippy
+
+script:
+  - cargo test
+
+#after_success: scripts/run_kcov.sh
