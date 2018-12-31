@@ -56,6 +56,22 @@ pub trait TryFromPgDatum: Sized {
     fn try_from(datum: PgDatum) -> Result<Self, &'static str>;
 }
 
+impl TryFromPgDatum for i16 {
+    fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
+        if let Some(datum) = datum.0 {
+            Ok(datum as i16)
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl From<i16> for PgDatum {
+    fn from(value: i16) -> Self {
+        PgDatum(Some(value as Datum))
+    }
+}
+
 impl TryFromPgDatum for i32 {
     fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
         if let Some(datum) = datum.0 {
@@ -68,6 +84,24 @@ impl TryFromPgDatum for i32 {
 
 impl From<i32> for PgDatum {
     fn from(value: i32) -> Self {
+        PgDatum(Some(value as Datum))
+    }
+}
+
+impl TryFromPgDatum for i64 {
+    fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
+        assert!(std::mem::size_of::<Datum>() >= std::mem::size_of::<i64>(), "Datum not large enough for i64 values");
+        if let Some(datum) = datum.0 {
+            Ok(datum as i64)
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl From<i64> for PgDatum {
+    fn from(value: i64) -> Self {
+        assert!(std::mem::size_of::<Datum>() >= std::mem::size_of::<i64>(), "Datum not large enough for i64 values");
         PgDatum(Some(value as Datum))
     }
 }

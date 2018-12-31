@@ -17,12 +17,27 @@ pg_magic!(version: pg_sys::PG_VERSION_NUM);
 /// The pg_extern attribute wraps the function in the proper functions syntax for C extensions
 #[pg_extern]
 fn add_one(value: i32) -> i32 {
-    // test allocation...
-    let msg: String = format!("fun: {}", value);
-    println!("more: {}", msg);
-
     (value + 1)
 }
+
+/// Test the i16 value
+#[pg_extern]
+fn add_small_one(value: i16) -> i16 {
+    (value + 1)
+}
+
+/// Test the i16 value
+#[pg_extern]
+fn add_big_one(value: i64) -> i64 {
+    (value + 1)
+}
+
+/// Test the i16 value
+#[pg_extern]
+fn add_together(v1: i64, v2: i32, v3: i16) -> i64 {
+    (v1 + v2 as i64 + v3 as i64)
+}
+
 
 #[cfg(test)]
 mod tests {

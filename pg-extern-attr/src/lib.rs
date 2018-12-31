@@ -65,6 +65,59 @@ fn extract_arg_data(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
     get_args_stream
 }
 
+fn sql_param_list(num_args: usize) -> String {
+    let mut tokens = String::new();
+    if num_args == 0 {
+        return tokens;
+    }
+
+    let arg_name = |num: usize| format!("{{sql_{}}}", num);
+
+    for i in 0..(num_args - 1) {
+        let arg_name = arg_name(i);
+        tokens.push_str(&format!("{},", arg_name));
+    }
+
+    let arg_name = arg_name(num_args - 1);
+    tokens.push_str(&arg_name);
+
+    tokens
+}
+
+fn sql_param_types(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
+    let mut tokens = TokenStream::new();
+
+    for (i, arg) in inputs.iter().enumerate() {
+        let arg_type: &syn::Type = match *arg {
+            syn::FnArg::SelfRef(_) | syn::FnArg::SelfValue(_) => {
+                panic!("self functions not supported")
+            }
+            syn::FnArg::Inferred(_) => panic!("inferred function parameters not supported"),
+            syn::FnArg::Captured(ref captured) => &captured.ty,
+            syn::FnArg::Ignored(ref ty) => ty,
+        };
+
+        let sql_name = Ident::new(&format!("sql_{}", i), Span::call_site());
+
+        let sql_param = quote!(
+            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(),
+        );
+
+        tokens.extend(sql_param);
+    }
+
+    tokens
+}
+
+fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
+    let ty = match outputs {
+        syn::ReturnType::Default => quote!(()),
+        syn::ReturnType::Type(_, ty) => quote!(#ty),
+    };
+
+    quote!(pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
+}
+
 fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let func = if let syn::Item::Fn(func) = item {
         func
@@ -81,7 +134,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 
     //let generics = &func_decl.generics;
     let inputs = &func_decl.inputs;
-    //let result = &func_decl.output;
+    let output = &func_decl.output;
     //let func_block = &func.block;
 
     // declare the function
@@ -156,7 +209,39 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         }
     );
 
+    let create_sql_name =
+        syn::Ident::new(&format!("{}_pg_create_stmt", func_name), Span::call_site());
+
+    let sql_params = sql_param_list(inputs.len());
+    let sql_param_types = sql_param_types(inputs);
+    let sql_return = sql_return_type(output);
+
+    // ret and library_path are replacements at runtime
+    let sql_stmt = format!(
+        "CREATE or REPLACE FUNCTION {}({}) {{ret}} AS '{{library_path}}', '{}' LANGUAGE C STRICT;",
+        func_name, sql_params, func_wrapper_name,
+    );
+
+    //panic!("{}", sql_stmt);
+
+    // declare a function that can be used to output a create statement for the externed function
+    let create_sql_def = quote!(
+        #[allow(unused)]
+        pub fn #create_sql_name(library_path: &str) -> String {
+            use pg_extend::pg_type::PgTypeInfo;
+
+            format!(
+                #sql_stmt,
+                #sql_param_types
+                ret = #sql_return,
+                library_path = library_path
+            )
+        }
+    );
+
     function.extend(func_wrapper);
+    function.extend(create_sql_def);
+
     function
 }
 
