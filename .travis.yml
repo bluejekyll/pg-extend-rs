@@ -8,7 +8,6 @@ addons:
     packages:
       - postgresql-server-dev-11
 
-
 matrix:
   include:
     # parallel builds for tests
@@ -31,8 +30,8 @@ matrix:
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
       before_install:
-        - brew upgrade postgresql || brew install postgres
         - rustup component add rustfmt
+        - brew upgrade postgresql || brew install postgres
       script: 
         - cargo test
 
@@ -45,6 +44,7 @@ matrix:
            RUST_BACKTRACE=full
       before_install:
         - rustup component add clippy
+        - rustup component add rustfmt
       script:
         - cargo clippy
 
