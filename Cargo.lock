@@ -236,9 +236,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pg-extend"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bindgen 0.45.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "no-panic 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pg-extern-attr"
 version = "0.2.2"
 dependencies = [
+ "pg-extend 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.15.23 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -453,6 +463,7 @@ dependencies = [
 "checksum no-panic 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "e8edf8fb82b89dbaff89710eb31fa3ff48c34be2319e2a3920afb3ad6e238114"
 "checksum nom 4.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9c349f68f25f596b9f44cf0e7c69752a5c633b0550c3ff849518bfba0233774a"
 "checksum peeking_take_while 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
+"checksum pg-extend 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ede3de1ca63b0160289e99437aa76970fb2a2c968c870d15055d70cb64274eec"
 "checksum proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)" = "77619697826f31a02ae974457af0b29b723e5619e113e9397b8b82c6bd253f09"
 "checksum quick-error 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9274b940887ce9addde99c4eee6b5c44cc494b182b97e73dc8ffdcb3397fd3f0"
 "checksum quote 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)" = "53fa22a1994bd0f9372d7a816207d8a2677ad0325b073f5c5332760f0fb62b5c"
