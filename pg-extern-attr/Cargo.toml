@@ -23,4 +23,4 @@ quote = "0.6"
 proc-macro2 = "0.4"
 
 [dev-dependencies]
-pg-extend = { version = "0.2" }
+pg-extend = { path = "../pg-extend" }
