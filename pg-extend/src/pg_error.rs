@@ -9,7 +9,7 @@
 
 use std::os::raw::{c_int, c_char};
 
-use crate::pg_sys;
+use crate::{pg_sys, pg_bool};
 
 const ERR_DOMAIN: &[u8] = b"RUST\0";
 
@@ -82,7 +82,8 @@ where
 
     // log the data:
     unsafe {
-        if pg_sys::errstart(errlevel, file, line, func_name, ERR_DOMAIN.as_ptr() as *const c_char) {
+        let res = pg_sys::errstart(errlevel, file, line, func_name, ERR_DOMAIN.as_ptr() as *const c_char);
+        if pg_bool::Bool::from(res).into() {
             let msg_result = pg_sys::errmsg(msg);
             pg_sys::errfinish(msg_result);
         }

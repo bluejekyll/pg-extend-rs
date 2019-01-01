@@ -140,14 +140,15 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
             match panic_result {
                 Ok(result) => {
                     // in addition to the null case, we should handle result types probably
-                    func_info.isnull = result.is_null();
+                    let isnull: pg_extend::pg_bool::Bool = result.is_null().into();
+                    func_info.isnull = isnull.into_bool();
 
                     // return the datum
                     result.into_datum()
                 }
                 Err(err) => {
                     // ensure the return value is null
-                    func_info.isnull = true;
+                    func_info.isnull = pg_extend::pg_bool::Bool::from(true).into_bool();
 
                     // TODO: anything else to cean up before resuming the panic?
                     panic::resume_unwind(err)

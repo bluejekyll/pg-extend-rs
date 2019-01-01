@@ -39,3 +39,22 @@ impl From<bool> for Bool {
         }
     }
 }
+
+impl From<u8> for Bool {
+    /// Parse a Bool from a integer.
+    ///
+    /// Required in the case where bindgen turns a C bool into u8 (i.e. linux)
+    ///
+    /// ```
+    /// !assert_eq(Bool(TRUE_), Bool.from(1 as u8))
+    /// !assert_eq(Bool(FALSE_), Bool.from(0 as u8))
+    /// ```
+    fn from(i: u8) -> Self {
+        if i == 0 {
+            Bool(TRUE_)
+        } else {
+            Bool(FALSE_)
+        }
+    }
+}
+

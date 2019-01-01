@@ -12,7 +12,6 @@
 extern crate no_panic;
 
 pub mod pg_alloc;
-#[cfg(feature = "pg_v10")]
 pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
@@ -61,11 +60,15 @@ macro_rules! pg_magic {
 /// Returns the slice of Datums, and a parallel slice which specifies if the Datum passed in is (SQL) NULL
 pub fn get_args(
     func_call_info: &pg_sys::FunctionCallInfoData,
-) -> (&[pg_sys::Datum], &[bool]) {
+) -> (&[pg_sys::Datum], Vec<bool>) {
     let num_args = func_call_info.nargs as usize;
 
     let args: &[pg_sys::Datum] = &func_call_info.arg[..num_args];
-    let args_null: &[bool] = &func_call_info.argnull[..num_args];
+    let args_null: Vec<bool> =
+        func_call_info.argnull[..num_args]
+        .into_iter()
+        .map(|b| pg_bool::Bool::from(*b).into())
+        .collect();
 
     (args, args_null)
 }

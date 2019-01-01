@@ -14,6 +14,7 @@ use pg_extend::pg_magic;
 /// This tells Postges this library is a Postgres extension
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
+
 /// The pg_extern attribute wraps the function in the proper functions syntax for C extensions
 #[pg_extern]
 fn add_one(value: i32) -> i32 {
