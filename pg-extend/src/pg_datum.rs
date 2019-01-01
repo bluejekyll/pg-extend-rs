@@ -10,6 +10,7 @@
 use no_panic::no_panic;
 
 use crate::pg_sys::Datum;
+use crate::pg_bool;
 
 /// A wrapper type for Postgres Datum's.
 /// 
@@ -19,7 +20,8 @@ pub struct PgDatum(Option<Datum>);
 
 impl PgDatum {
     /// Returns a new PgDatum wrapper for Datatypes used by Postgres.
-    pub fn from_raw<B: Into<bool>>(datum: Datum, is_null: B) -> Self {
+    pub fn from_raw<B: Into<pg_bool::Bool>>(datum: Datum, is_null: B) -> Self {
+        let is_null: pg_bool::Bool = is_null.into();
         let datum = if is_null.into() { None } else { Some(datum) };
         PgDatum(datum)
     }
