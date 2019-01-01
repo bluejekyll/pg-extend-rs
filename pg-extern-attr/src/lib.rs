@@ -348,6 +348,7 @@ pub fn pg_extern(
 /// An attribute macro for wrapping Rust structs with boiler plate for defining and exposing a foreign data wrapper
 /// This is mostly a slimmed down version of pg_extern, with none of the data argument handling.
 #[proc_macro_attribute]
+#[allow(clippy::needless_pass_by_value)]
 pub fn pg_foreignwrapper(
     _attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
