@@ -60,17 +60,16 @@ macro_rules! pg_magic {
 }
 
 /// Returns the slice of Datums, and a parallel slice which specifies if the Datum passed in is (SQL) NULL
-pub fn get_args(
-    func_call_info: &pg_sys::FunctionCallInfoData,
-) -> (&[pg_sys::Datum], Vec<bool>) {
+pub fn get_args<'a>(
+    func_call_info: &'a pg_sys::FunctionCallInfoData,
+) -> (impl 'a + Iterator<Item=&pg_sys::Datum>, impl 'a + Iterator<Item=pg_bool::Bool>) {
     let num_args = func_call_info.nargs as usize;
 
-    let args: &[pg_sys::Datum] = &func_call_info.arg[..num_args];
-    let args_null: Vec<bool> =
+    let args = func_call_info.arg[..num_args].into_iter();
+    let args_null =
         func_call_info.argnull[..num_args]
         .into_iter()
-        .map(|b| pg_bool::Bool::from(*b).into())
-        .collect();
+        .map(|b| pg_bool::Bool::from(*b));
 
     (args, args_null)
 }
