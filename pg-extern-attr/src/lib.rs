@@ -118,6 +118,53 @@ fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
     quote!(pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
 }
 
+fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
+    let typ = if let syn::Item::Struct(typ) = item {
+        typ
+    } else {
+        panic!("Annotation only supported on structs")
+    };
+
+    let mut decl = item.clone().into_token_stream();
+
+    let struct_name = &typ.ident;
+    let func_name = syn::Ident::new(
+        &format!("fdw_{}", struct_name),
+        Span::call_site(),
+        );
+
+    let info_fn = get_info_fn(&func_name);
+
+    let fdw_fn = quote!(
+        #[no_mangle]
+        pub extern "C" fn #func_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
+            #struct_name::into_datum()
+        }
+    );
+
+    decl.extend(info_fn);
+    decl.extend(fdw_fn);
+
+    decl
+}
+
+fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
+        let func_info_name = syn::Ident::new(
+        &format!("pg_finfo_{}", func_name),
+        Span::call_site(),
+    );
+
+    // create the postgres info
+    quote!(
+        #[no_mangle]
+        pub extern "C" fn #func_info_name () -> &'static pg_extend::pg_sys::Pg_finfo_record {
+            const my_finfo: pg_extend::pg_sys::Pg_finfo_record = pg_extend::pg_sys::Pg_finfo_record { api_version: 1 };
+            &my_finfo
+        }
+    )
+
+}
+
 fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let func = if let syn::Item::Fn(func) = item {
         func
@@ -141,25 +188,13 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let mut function = item.clone().into_token_stream();
 
     let func_wrapper_name = syn::Ident::new(&format!("pg_{}", func_name), Span::call_site());
-    let func_info_name = syn::Ident::new(
-        &format!("pg_finfo_{}", func_wrapper_name),
-        Span::call_site(),
-    );
-
-    // create the postgres info
-    let func_info = quote!(
-        #[no_mangle]
-        pub extern "C" fn #func_info_name () -> &'static pg_extend::pg_sys::Pg_finfo_record {
-            const my_finfo: pg_extend::pg_sys::Pg_finfo_record = pg_extend::pg_sys::Pg_finfo_record { api_version: 1 };
-            &my_finfo
-        }
-    );
-
+    let func_info = get_info_fn(&func_wrapper_name);
     // join the function information in
     function.extend(func_info);
 
     let get_args_from_datums = extract_arg_data(inputs);
     let func_params = create_function_params(inputs.len());
+
 
     // wrap the original function in a pg_wrapper function
     let func_wrapper = quote!(
@@ -305,6 +340,23 @@ pub fn pg_extern(
 
     // Build the impl
     let expanded: TokenStream = impl_info_for_fn(&ast);
+
+    // Return the generated impl
+    proc_macro::TokenStream::from(expanded)
+}
+
+/// An attribute macro for wrapping Rust structs with boiler plate for defining and exposing a foreign data wrapper
+/// This is mostly a slimmed down version of pg_extern, with none of the data argument handling.
+#[proc_macro_attribute]
+pub fn pg_foreignwrapper(
+    _attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    // get a usable token stream
+    let ast: syn::Item = parse_macro_input!(item as syn::Item);
+
+    // Build the impl
+    let expanded: TokenStream = impl_info_for_fdw(&ast);
 
     // Return the generated impl
     proc_macro::TokenStream::from(expanded)
