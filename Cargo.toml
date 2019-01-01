@@ -7,6 +7,6 @@ members = [
     "pg-extern-attr", 
     "examples/adding", 
     "examples/panicking",
-    "integration-tests",
     "examples/fdw",
+    "integration-tests",
 ]
