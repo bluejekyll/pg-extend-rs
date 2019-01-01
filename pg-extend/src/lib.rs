@@ -10,6 +10,7 @@
 #![warn(missing_docs)]
 
 pub mod pg_alloc;
+#[macro_use]
 pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
