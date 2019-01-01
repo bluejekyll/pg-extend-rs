@@ -82,8 +82,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
                 std::ptr::null_mut(),
                 (*base_rel).rows,
                 // TODO real costs
-                10 as pg_sys::Cost,
-                0 as pg_sys::Cost,
+                pg_sys::Cost::from(10),
+                pg_sys::Cost::from(0),
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
@@ -134,7 +134,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
     }
 
-    fn get_field<'a>(
+    fn get_field(
         attr: &pg_sys::FormData_pg_attribute,
         row: &ForeignRow,
     ) -> Result<Option<pg_datum::PgDatum>, String> {
