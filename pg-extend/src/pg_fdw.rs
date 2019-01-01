@@ -1,19 +1,32 @@
-use crate::{pg_bool, pg_sys, pg_datum};
-use std::marker::PhantomData;
+use crate::{pg_datum, pg_sys, pg_type};
 use std::boxed::Box;
+use std::collections::HashMap;
+use std::ffi::CStr;
 
 /// Adapted and transalated from https://github.com/slaught/dummy_fdw/blob/master/dummy_data.c
 /// A trait for implementing a foreign data wrapper
 
-pub trait ForeignData: IntoIterator<Item=Vec<pg_datum::PgDatum>> {
+// TODO: can we avoid this box?
+pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     fn new() -> Self;
 }
 
-pub struct ForeignWrapper<T: ForeignData>{
-    wraps: PhantomData<T>
+pub type OptionMap = HashMap<String, String>;
+
+pub trait ForeignRow {
+    fn get_field(
+        &self,
+        name: &str,
+        typ: pg_type::PgType,
+        opts: OptionMap,
+    ) -> Result<Option<pg_datum::PgDatum>, &str>;
 }
 
-impl <T: ForeignData> ForeignWrapper<T> {
+pub struct ForeignWrapper<T: ForeignData> {
+    state: T,
+}
+
+impl<T: ForeignData> ForeignWrapper<T> {
     /// set relation size estimates for a foreign table
     unsafe extern "C" fn get_foreign_rel_size(
         _root: *mut pg_sys::PlannerInfo,
@@ -64,7 +77,7 @@ impl <T: ForeignData> ForeignWrapper<T> {
     ) -> *mut pg_sys::ForeignScan {
         let scan_relid = (*baserel).relid;
         let scan_clauses =
-            pg_sys::extract_actual_clauses(scan_clauses, pg_bool::Bool::from(false).into());
+            pg_sys::extract_actual_clauses(scan_clauses, pgbool!(false));
         return pg_sys::make_foreignscan(
             tlist,
             scan_clauses,
@@ -83,8 +96,28 @@ impl <T: ForeignData> ForeignWrapper<T> {
         node: *mut pg_sys::ForeignScanState,
         _eflags: std::os::raw::c_int,
     ) {
-        let state = Box::new(T::new());
-        (*node).fdw_state = Box::into_raw(state) as *mut std::os::raw::c_void;
+        let wrapper = Box::new(Self { state: T::new() });
+
+        (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
+    }
+
+    fn get_field<'a>(
+        attr: &pg_sys::FormData_pg_attribute,
+        row: &'a ForeignRow,
+    ) -> Result<Option<pg_datum::PgDatum>, &'a str> {
+        let cname = CStr::from_bytes_with_nul(&attr.attname.data)
+            // TODO: use actual error
+            .map_err(|_e| "FromBytes error")?;
+        let name = cname
+            .to_str()
+            // TODO
+            .map_err(|_e| "UTF8Error")?;
+        // let typ = attr.atttypid;
+        // TODO not fake
+        let typ = pg_type::PgType::Text;
+        // TODO get options
+        let opts = HashMap::new();
+        row.get_field(name, typ, opts)
     }
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
@@ -93,9 +126,59 @@ impl <T: ForeignData> ForeignWrapper<T> {
     ///  (the node's ScanTupleSlot should be used for this purpose).
     ///  Return NULL if no more rows are available.
     unsafe extern "C" fn iterate_foreign_scan(
-        _node: *mut pg_sys::ForeignScanState,
+        node: *mut pg_sys::ForeignScanState,
     ) -> *mut pg_sys::TupleTableSlot {
-        std::ptr::null_mut()
+        let mut wrapper = Box::from_raw((*node).fdw_state as *mut Box<Self>);
+        let slot = (*node).ss.ss_ScanTupleSlot;
+
+        // clear the slot
+        // let slot = pg_sys::ExecClearTuple(slot);
+
+        // let ret = if let Some(row) = (*wrapper).state.next() {
+        //     let mut tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
+        //     // Get list of attributes
+        //     let attrs: &[pg_sys::Form_pg_attribute] =
+        //         std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
+        //     // Datum array
+        //     let mut data = vec![0 as pg_sys::Datum; attrs.len()];
+        //     // Boolean array
+        //     let mut isnull = vec![pgbool!(false); attrs.len()];
+        //     for (i, pattr) in attrs.into_iter().enumerate() {
+        //         // TODO: There must be a better way to do this?
+        //         let result = Self::get_field(&(**pattr), &(*row));
+        //         match result {
+        //             Err(_err) =>
+        //             // TODO handle error
+        //             {
+        //                 continue;
+        //             }
+        //             Ok(None) => continue,
+        //             Ok(Some(var)) => {
+        //                 data[i] = var.into_datum();
+        //                 isnull[i] = pgbool!(false);
+        //             }
+        //         };
+        //     }
+
+        //     let tuple = pg_sys::heap_form_tuple(
+        //         &mut tupledesc as *mut _,
+        //         data.as_mut_slice().as_mut_ptr(),
+        //         isnull.as_mut_slice().as_mut_ptr(),
+        //     );
+        //     pg_sys::ExecStoreTuple(
+        //         tuple,
+        //         slot,
+        //         pg_sys::InvalidBuffer as pg_sys::Buffer,
+        //         pgbool!(false),
+        //     )
+        // } else {
+        //     std::ptr::null_mut()
+        // };
+
+        let ret = std::ptr::null_mut();
+
+        // (*node).fdw_state = Box::into_raw(wrapper) as *mut std::ffi::c_void;
+        ret
     }
 
     /// Restart the scan from the beginning
@@ -146,6 +229,8 @@ impl <T: ForeignData> ForeignWrapper<T> {
             InitializeDSMForeignScan: None,
             InitializeWorkerForeignScan: None,
         });
+        // TODO: this isn't quite right, it will never be from_raw loaded
+        // so it won't be cleaned properly
         Box::into_raw(node) as pg_sys::Datum
     }
 }

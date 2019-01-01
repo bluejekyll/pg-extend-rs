@@ -8,8 +8,8 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::ForeignData;
-use pg_extend::{pg_datum, pg_magic};
+use pg_extend::pg_fdw::{ForeignRow, ForeignData, OptionMap};
+use pg_extend::{pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
 #[cfg(test)]
@@ -24,22 +24,40 @@ mod tests {
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
 #[pg_foreignwrapper]
-struct DefaultFDW;
+struct DefaultFDW{
+    i: i32,
+}
 
-impl IntoIterator for DefaultFDW {
-    type Item = Vec<pg_datum::PgDatum>;
-    type IntoIter = std::vec::IntoIter<Vec<pg_datum::PgDatum>>;
+struct MyRow {
+    i: i32,
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        vec!(
-            vec!(17.into()),
-            vec!(18.into()),
-        ).into_iter()
+impl ForeignRow for MyRow {
+    fn get_field(
+        &self,
+        _name: &str,
+        _typ: pg_type::PgType,
+        _opts: OptionMap,
+    ) -> Result<Option<pg_datum::PgDatum>, &str> {
+        Ok(Some(self.i.into()))
+    }
+}
+
+impl Iterator for DefaultFDW {
+    type Item = Box<ForeignRow>;
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+        // self.i = self.i + 1;
+        // if self.i > 5 {
+        //     None
+        // } else {
+        //     Some(Box::new(MyRow{i: self.i}))
+        // }
     }
 }
 
 impl ForeignData for DefaultFDW {
     fn new() -> Self {
-        DefaultFDW {}
+        DefaultFDW {i: 0}
     }
 }

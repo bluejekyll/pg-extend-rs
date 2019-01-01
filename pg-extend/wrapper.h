@@ -8,7 +8,10 @@
 #include "postgres.h"
 #include "executor/spi.h"
 
+#include "access/relscan.h"
 #include "foreign/fdwapi.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/planmain.h"
 #include "optimizer/restrictinfo.h"
+#include "utils/rel.h"
+#include "catalog/pg_type.h"
