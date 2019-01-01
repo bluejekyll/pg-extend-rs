@@ -28,6 +28,8 @@ fn main() {
         // to bindgen, and lets you build up options for
         // the resulting bindings.
 
+        // these cause duplicate definition problems on linux
+        // see: https://github.com/rust-lang/rust-bindgen/issues/687
         let ignored_macros = IgnoreMacros(
             vec![
                 "FP_INFINITE".into(),

@@ -21,4 +21,4 @@ build = "build.rs"
 no-panic = "0.1.6"
 
 [build-dependencies]
-bindgen = "0.45"
+bindgen = "0.46"
