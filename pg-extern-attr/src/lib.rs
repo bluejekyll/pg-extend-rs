@@ -195,7 +195,6 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let get_args_from_datums = extract_arg_data(inputs);
     let func_params = create_function_params(inputs.len());
 
-
     // wrap the original function in a pg_wrapper function
     let func_wrapper = quote!(
         #[no_mangle]
