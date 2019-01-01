@@ -1,4 +1,4 @@
-use crate::{pg_datum, pg_sys, pg_type};
+use crate::{pg_datum, pg_error, pg_sys, pg_type};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -76,8 +76,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         outer_plan: *mut pg_sys::Plan,
     ) -> *mut pg_sys::ForeignScan {
         let scan_relid = (*baserel).relid;
-        let scan_clauses =
-            pg_sys::extract_actual_clauses(scan_clauses, pgbool!(false));
+        let scan_clauses = pg_sys::extract_actual_clauses(scan_clauses, pgbool!(false));
         return pg_sys::make_foreignscan(
             tlist,
             scan_clauses,
@@ -103,21 +102,19 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
     fn get_field<'a>(
         attr: &pg_sys::FormData_pg_attribute,
-        row: &'a ForeignRow,
-    ) -> Result<Option<pg_datum::PgDatum>, &'a str> {
-        let cname = CStr::from_bytes_with_nul(&attr.attname.data)
-            // TODO: use actual error
-            .map_err(|_e| "FromBytes error")?;
+        row: &ForeignRow,
+    ) -> Result<Option<pg_datum::PgDatum>, String> {
+        let cname = unsafe { CStr::from_ptr(attr.attname.data.as_ptr()) };
         let name = cname
             .to_str()
             // TODO
-            .map_err(|_e| "UTF8Error")?;
+            .map_err(|e| format!("{:#?}", e))?;
         // let typ = attr.atttypid;
         // TODO not fake
         let typ = pg_type::PgType::Text;
         // TODO get options
         let opts = HashMap::new();
-        row.get_field(name, typ, opts)
+        row.get_field(name, typ, opts).map_err(|e| e.into())
     }
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
@@ -128,56 +125,53 @@ impl<T: ForeignData> ForeignWrapper<T> {
     unsafe extern "C" fn iterate_foreign_scan(
         node: *mut pg_sys::ForeignScanState,
     ) -> *mut pg_sys::TupleTableSlot {
-        let mut wrapper = Box::from_raw((*node).fdw_state as *mut Box<Self>);
+        let mut wrapper = Box::from_raw((*node).fdw_state as *mut Self);
         let slot = (*node).ss.ss_ScanTupleSlot;
 
         // clear the slot
-        // let slot = pg_sys::ExecClearTuple(slot);
+        let slot = pg_sys::ExecClearTuple(slot);
 
-        // let ret = if let Some(row) = (*wrapper).state.next() {
-        //     let mut tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
-        //     // Get list of attributes
-        //     let attrs: &[pg_sys::Form_pg_attribute] =
-        //         std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
-        //     // Datum array
-        //     let mut data = vec![0 as pg_sys::Datum; attrs.len()];
-        //     // Boolean array
-        //     let mut isnull = vec![pgbool!(false); attrs.len()];
-        //     for (i, pattr) in attrs.into_iter().enumerate() {
-        //         // TODO: There must be a better way to do this?
-        //         let result = Self::get_field(&(**pattr), &(*row));
-        //         match result {
-        //             Err(_err) =>
-        //             // TODO handle error
-        //             {
-        //                 continue;
-        //             }
-        //             Ok(None) => continue,
-        //             Ok(Some(var)) => {
-        //                 data[i] = var.into_datum();
-        //                 isnull[i] = pgbool!(false);
-        //             }
-        //         };
-        //     }
+        let ret = if let Some(row) = (*wrapper).state.next() {
+            let mut tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
+            // Get list of attributes
+            let attrs: &[pg_sys::Form_pg_attribute] =
+                std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
+            // Datum array
+            let mut data = vec![0 as pg_sys::Datum; attrs.len()];
+            // Boolean array
+            let mut isnull = vec![pgbool!(true); attrs.len()];
+            for (i, pattr) in attrs.into_iter().enumerate() {
+                // TODO: There must be a better way to do this?
+                let result = Self::get_field(&(**pattr), &(*row));
+                match result {
+                    Err(err) => {
+                        pg_error::log(pg_error::Level::Warning, file!(), line!(), "get_field", err);
+                        continue;
+                    }
+                    Ok(None) => continue,
+                    Ok(Some(var)) => {
+                        data[i] = var.into_datum();
+                        isnull[i] = pgbool!(false);
+                    }
+                };
+            }
 
-        //     let tuple = pg_sys::heap_form_tuple(
-        //         &mut tupledesc as *mut _,
-        //         data.as_mut_slice().as_mut_ptr(),
-        //         isnull.as_mut_slice().as_mut_ptr(),
-        //     );
-        //     pg_sys::ExecStoreTuple(
-        //         tuple,
-        //         slot,
-        //         pg_sys::InvalidBuffer as pg_sys::Buffer,
-        //         pgbool!(false),
-        //     )
-        // } else {
-        //     std::ptr::null_mut()
-        // };
+            let tuple = pg_sys::heap_form_tuple(
+                &mut tupledesc as *mut _,
+                data.as_mut_slice().as_mut_ptr(),
+                isnull.as_mut_slice().as_mut_ptr(),
+            );
+            pg_sys::ExecStoreTuple(
+                tuple,
+                slot,
+                pg_sys::InvalidBuffer as pg_sys::Buffer,
+                pgbool!(false),
+            )
+        } else {
+            std::ptr::null_mut()
+        };
 
-        let ret = std::ptr::null_mut();
-
-        // (*node).fdw_state = Box::into_raw(wrapper) as *mut std::ffi::c_void;
+        (*node).fdw_state = Box::into_raw(wrapper) as *mut std::ffi::c_void;
         ret
     }
 
