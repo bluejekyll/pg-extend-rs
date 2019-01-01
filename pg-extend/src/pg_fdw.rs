@@ -76,7 +76,7 @@ pub trait ForeignWrapper {
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
     ///	EOF.
-    /// Fetch one row from the foreign source, returning it in a tuple table slot
+    /// Fetch one row from the foreign 
     ///  (the node's ScanTupleSlot should be used for this purpose).
     ///  Return NULL if no more rows are available.
     unsafe extern "C" fn iterate_foreign_scan(
@@ -91,7 +91,7 @@ pub trait ForeignWrapper {
     /// End the scan and release resources.
     unsafe extern "C" fn end_foreign_scan(_node: *mut pg_sys::ForeignScanState) {}
 
-    fn into_datum(&self) -> pg_sys::Datum {
+    fn into_datum() -> pg_sys::Datum {
         let node = Box::new(pg_sys::FdwRoutine {
             type_: pg_sys::NodeTag_T_FdwRoutine,
             GetForeignRelSize: Some(Self::get_foreign_rel_size),
