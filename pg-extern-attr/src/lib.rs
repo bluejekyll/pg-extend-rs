@@ -194,14 +194,14 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                 Ok(result) => {
                     // in addition to the null case, we should handle result types probably
                     let isnull: pg_extend::pg_bool::Bool = result.is_null().into();
-                    func_info.isnull = isnull.into_bool();
+                    func_info.isnull = isnull.into();
 
                     // return the datum
                     result.into_datum()
                 }
                 Err(err) => {
                     // ensure the return value is null
-                    func_info.isnull = pg_extend::pg_bool::Bool::from(true).into_bool();
+                    func_info.isnull = pg_extend::pg_bool::Bool::from(true).into();
 
                     // TODO: anything else to cean up before resuming the panic?
                     panic::resume_unwind(err)
@@ -272,6 +272,9 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 ///  the wrapper function with a signature of:
 ///
 /// ```rust,no_run
+/// extern crate pg_extend;
+/// use pg_extend::pg_sys;
+///
 ///  #[no_mangle]
 ///  pub extern "C" fn pg_add_one(func_call_info: pg_sys::FunctionCallInfo) -> pg_sys::Datum
 /// # {
@@ -282,8 +285,11 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 /// and the info function with a signature of:
 ///
 /// ```rust,no_run
+/// extern crate pg_extend;
+/// use pg_extend::pg_sys;
+///
 /// #[no_mangle]
-/// pub extern "C" fn pg_finfo_pg_add_one() -> &'static Pg_finfo_record
+/// pub extern "C" fn pg_finfo_pg_add_one() -> &'static pg_sys::Pg_finfo_record
 /// # {
 /// # unimplemented!()
 /// # }

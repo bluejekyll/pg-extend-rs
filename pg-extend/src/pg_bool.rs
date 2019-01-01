@@ -5,37 +5,40 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-//! only needed for pg v. 10?
+//! Support for Postgres boolean values
 
-use crate::pg_sys::bool_;
+const TRUE_U8: u8 = 1;
+const FALSE_U8: u8 = 0;
 
-const TRUE_: bool_ = 1;
-const FALSE_: bool_ = 0;
+const TRUE_I8: i8 = 1;
+const FALSE_I8: i8 = 0;
 
-pub struct Bool(bool_);
+const TRUE_CH: char = 1 as char;
+const FALSE_CH: char = 0 as char;
 
-impl Bool {
-    pub fn from_raw(b: bool_) -> Self {
-        Bool(b)
-    }
-
-    pub fn into_bool(self) -> bool_ {
-        self.0
-    }
-}
+/// This type provides conversions for all the possible types that Postgres might use internally for
+///   boolean values.
+#[derive(Clone, Copy)]
+pub struct Bool(bool);
 
 impl From<Bool> for bool {
     fn from(b: Bool) -> Self {
-        b.0 == TRUE_
+        b.0
     }
 }
 
 impl From<bool> for Bool {
     fn from(b: bool) -> Self {
-        if b {
-            Bool(TRUE_)
+        Bool(b)
+    }
+}
+
+impl From<Bool> for u8 {
+    fn from(b: Bool) -> Self {
+        if b.0 {
+            TRUE_U8
         } else {
-            Bool(FALSE_)
+            FALSE_U8
         }
     }
 }
@@ -46,15 +49,45 @@ impl From<u8> for Bool {
     /// Required in the case where bindgen turns a C bool into u8 (i.e. linux)
     ///
     /// ```
-    /// !assert_eq(Bool(TRUE_), Bool.from(1 as u8))
-    /// !assert_eq(Bool(FALSE_), Bool.from(0 as u8))
+    /// extern crate pg_extend;
+    /// use pg_extend::pg_bool::Bool;
+    /// 
+    /// assert_eq!(u8::from(Bool::from(1_u8)), u8::from(Bool::from(true)));
+    /// assert_eq!(u8::from(Bool::from(0_u8)), u8::from(Bool::from(false)));
     /// ```
     fn from(i: u8) -> Self {
-        if i == 0 {
-            Bool(TRUE_)
+        Bool(i == TRUE_U8)
+    }
+}
+
+impl From<Bool> for i8 {
+    fn from(b: Bool) -> Self {
+        if b.0 {
+            TRUE_I8
         } else {
-            Bool(FALSE_)
+            FALSE_I8
         }
     }
 }
 
+impl From<i8> for Bool {
+    fn from(i: i8) -> Self {
+        Bool(i == TRUE_I8)
+    }
+}
+
+impl From<Bool> for char {
+    fn from(b: Bool) -> Self {
+        if b.0 {
+            TRUE_CH
+        } else {
+            FALSE_CH
+        }
+    }
+}
+
+impl From<char> for Bool {
+    fn from(i: char) -> Self {
+        Bool(i == TRUE_CH)
+    }
+}
