@@ -1,19 +1,43 @@
+//! A trait for implementing a foreign data wrapper.
+//! Adapted and transalated from
+//! https://github.com/slaught/dummy_fdw/blob/master/dummy_data.c
+//! and
+//! https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
+//! For use with `#[pg_foreignwrapper]` from pg-extend-attr
+
+
 use crate::{pg_datum, pg_error, pg_sys, pg_type};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::CStr;
 
-/// Adapted and transalated from https://github.com/slaught/dummy_fdw/blob/master/dummy_data.c
-/// A trait for implementing a foreign data wrapper
+
 
 // TODO: can we avoid this box?
+/// The foreign data wrapper itself. The next() method of this object
+/// is responsible for creating row objects to return data.
+/// The object is only active for the lifetime of a query, so it
+/// is not an appropriate place to put caching or long-running connections.
 pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
-    fn new() -> Self;
+    /// Called when a scan is initiated. Note that any heavy set up
+    /// such as making connections or allocating memory should not
+    /// happen in this step, but on the first call to next()
+    fn begin(server_opts: OptionMap, table_opts: OptionMap) -> Self;
 }
 
+/// The options passed to a server, table, or options
+/// i.e. CREATE SERVER myserver FOREIGN DATA WRAPPER postgres_fdw
+/// OPTIONS (host 'foo', dbname 'foodb', port '5432');
 pub type OptionMap = HashMap<String, String>;
 
+/// This represents a row. Because columns can be queried in any order,
+/// no expectations can be made about the order to return fields in a row in.
+/// Instead, choose which data to return at runtime.
 pub trait ForeignRow {
+    /// given a column name, type, and options, produce a value.
+    /// The type of PgDatum returned _should_ match the column's type
+    /// but this is not enforced.
+    /// Use None to return a null, do not return a PgDatum::Null
     fn get_field(
         &self,
         name: &str,
@@ -22,6 +46,9 @@ pub trait ForeignRow {
     ) -> Result<Option<pg_datum::PgDatum>, &str>;
 }
 
+/// Contains all the methods for interacting with
+/// Postgres at a low level. You should not interact with this directly,
+/// instead use `#[pg_foreignwrapper]` from pg-extend-attr
 pub struct ForeignWrapper<T: ForeignData> {
     state: T,
 }
@@ -77,7 +104,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     ) -> *mut pg_sys::ForeignScan {
         let scan_relid = (*baserel).relid;
         let scan_clauses = pg_sys::extract_actual_clauses(scan_clauses, pgbool!(false));
-        return pg_sys::make_foreignscan(
+        pg_sys::make_foreignscan(
             tlist,
             scan_clauses,
             scan_relid,
@@ -86,7 +113,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
             std::ptr::null_mut(), // fdw_scan_tlist
             std::ptr::null_mut(), // fdw_recheck_quals
             outer_plan,
-        );
+        )
     }
 
     /// called during executor startup. perform any initialization
@@ -95,7 +122,14 @@ impl<T: ForeignData> ForeignWrapper<T> {
         node: *mut pg_sys::ForeignScanState,
         _eflags: std::os::raw::c_int,
     ) {
-        let wrapper = Box::new(Self { state: T::new() });
+
+        // TODO real server options
+        let server_opts = HashMap::new();
+        // TODO real table options
+        let table_opts = HashMap::new();
+        let wrapper = Box::new(Self {
+            state: T::begin(server_opts, table_opts)
+        });
 
         (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
     }
@@ -181,6 +215,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
     /// End the scan and release resources.
     unsafe extern "C" fn end_foreign_scan(_node: *mut pg_sys::ForeignScanState) {}
 
+    /// Turn this into an actual foreign data wrapper object.
+    /// Postgres creates fdws by having a function return a special
+    /// fdw_routine object, which is what this datum is.
     pub fn into_datum() -> pg_sys::Datum {
         let node = Box::new(pg_sys::FdwRoutine {
             type_: pg_sys::NodeTag_T_FdwRoutine,
