@@ -18,6 +18,8 @@ matrix:
            PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
+      before_install:
+        - rustup component add rustfmt
       script:
         - cargo test
 
@@ -30,6 +32,7 @@ matrix:
            RUST_BACKTRACE=full
       before_install:
         - brew upgrade postgresql || brew install postgres
+        - rustup component add rustfmt
       script: 
         - cargo test
 
