@@ -138,7 +138,7 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
     let fdw_fn = quote!(
         #[no_mangle]
         pub extern "C" fn #func_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
-            #struct_name::into_datum()
+            pg_extend::pg_fdw::ForeignWrapper::<#struct_name>::into_datum()
         }
     );
 
