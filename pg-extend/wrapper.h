@@ -7,3 +7,8 @@
 
 #include "postgres.h"
 #include "executor/spi.h"
+
+#include "foreign/fdwapi.h"
+#include "optimizer/pathnode.h"
+#include "optimizer/planmain.h"
+#include "optimizer/restrictinfo.h"

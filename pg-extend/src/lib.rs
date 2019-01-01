@@ -15,6 +15,7 @@ pub mod pg_datum;
 pub mod pg_error;
 pub mod pg_sys;
 pub mod pg_type;
+pub mod pg_fdw;
 
 /// A macro for marking a library compatible with the Postgres extension framework.
 /// 
