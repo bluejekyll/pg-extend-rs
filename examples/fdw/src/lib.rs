@@ -8,8 +8,8 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::ForeignWrapper;
-use pg_extend::pg_magic;
+use pg_extend::pg_fdw::ForeignData;
+use pg_extend::{pg_datum, pg_magic};
 use pg_extern_attr::pg_foreignwrapper;
 
 #[cfg(test)]
@@ -26,5 +26,20 @@ pg_magic!(version: pg_sys::PG_VERSION_NUM);
 #[pg_foreignwrapper]
 struct DefaultFDW;
 
-impl ForeignWrapper for DefaultFDW {}
+impl IntoIterator for DefaultFDW {
+    type Item = Vec<pg_datum::PgDatum>;
+    type IntoIter = std::vec::IntoIter<Vec<pg_datum::PgDatum>>;
 
+    fn into_iter(self) -> Self::IntoIter {
+        vec!(
+            vec!(17.into()),
+            vec!(18.into()),
+        ).into_iter()
+    }
+}
+
+impl ForeignData for DefaultFDW {
+    fn new() -> Self {
+        DefaultFDW {}
+    }
+}

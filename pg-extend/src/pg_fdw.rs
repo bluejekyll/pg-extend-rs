@@ -1,8 +1,19 @@
-use crate::{pg_bool, pg_sys};
+use crate::{pg_bool, pg_sys, pg_datum};
+use std::marker::PhantomData;
+use std::boxed::Box;
 
 /// Adapted and transalated from https://github.com/slaught/dummy_fdw/blob/master/dummy_data.c
 /// A trait for implementing a foreign data wrapper
-pub trait ForeignWrapper {
+
+pub trait ForeignData: IntoIterator<Item=Vec<pg_datum::PgDatum>> {
+    fn new() -> Self;
+}
+
+pub struct ForeignWrapper<T: ForeignData>{
+    wraps: PhantomData<T>
+}
+
+impl <T: ForeignData> ForeignWrapper<T> {
     /// set relation size estimates for a foreign table
     unsafe extern "C" fn get_foreign_rel_size(
         _root: *mut pg_sys::PlannerInfo,
@@ -28,7 +39,7 @@ pub trait ForeignWrapper {
             pg_sys::create_foreignscan_path(
                 root,
                 base_rel,
-                std::ptr::null::<pg_sys::PathTarget>() as *mut _,
+                std::ptr::null_mut(),
                 (*base_rel).rows,
                 // TODO real costs
                 10 as pg_sys::Cost,
@@ -69,14 +80,16 @@ pub trait ForeignWrapper {
     /// called during executor startup. perform any initialization
     /// needed, but not start the actual scan.
     unsafe extern "C" fn begin_foreign_scan(
-        _node: *mut pg_sys::ForeignScanState,
+        node: *mut pg_sys::ForeignScanState,
         _eflags: std::os::raw::c_int,
     ) {
+        let state = Box::new(T::new());
+        (*node).fdw_state = Box::into_raw(state) as *mut std::os::raw::c_void;
     }
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
     ///	EOF.
-    /// Fetch one row from the foreign 
+    /// Fetch one row from the foreign
     ///  (the node's ScanTupleSlot should be used for this purpose).
     ///  Return NULL if no more rows are available.
     unsafe extern "C" fn iterate_foreign_scan(
@@ -91,7 +104,7 @@ pub trait ForeignWrapper {
     /// End the scan and release resources.
     unsafe extern "C" fn end_foreign_scan(_node: *mut pg_sys::ForeignScanState) {}
 
-    fn into_datum() -> pg_sys::Datum {
+    pub fn into_datum() -> pg_sys::Datum {
         let node = Box::new(pg_sys::FdwRoutine {
             type_: pg_sys::NodeTag_T_FdwRoutine,
             GetForeignRelSize: Some(Self::get_foreign_rel_size),
