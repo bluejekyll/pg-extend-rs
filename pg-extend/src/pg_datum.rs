@@ -7,8 +7,6 @@
 
 //! Postgres Datum conversions for Rust types
 
-use no_panic::no_panic;
-
 use crate::pg_sys::Datum;
 use crate::pg_bool;
 
@@ -32,7 +30,6 @@ impl PgDatum {
     /// 
     /// This must not panic, this is called directly at the FFI boundary with Postgres, if it panics it will cause 
     ///    the full Postgres DB to restart and enter recovery mode.
-    #[no_panic]
     pub fn is_null(&self) -> bool {
         self.0.is_none()
     }
@@ -43,7 +40,6 @@ impl PgDatum {
     /// 
     /// This must not panic, this is called directly at the FFI boundary with Postgres, if it panics it will cause 
     ///    the full Postgres DB to restart and enter recovery mode.
-    #[no_panic]
     pub fn into_datum(self) -> Datum {
         match self.0 {
             Some(datum) => datum,

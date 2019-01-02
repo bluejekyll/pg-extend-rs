@@ -5,6 +5,7 @@ debug = true
 members = [
     "pg-extend", 
     "pg-extern-attr", 
-    "examples/add_one", 
-    "examples/panicking"
+    "examples/adding", 
+    "examples/panicking",
+    "integration-tests",
 ]

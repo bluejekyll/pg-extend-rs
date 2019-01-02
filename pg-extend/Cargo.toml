@@ -18,7 +18,6 @@ build = "build.rs"
 #rustc-flags = "-C link-arg=undefineddynamic_lookup"
 
 [dependencies]
-no-panic = "0.1.6"
 
 [build-dependencies]
 bindgen = "0.46"
