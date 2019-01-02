@@ -1,0 +1,18 @@
+[package]
+name = "integration-tests"
+version = "0.0.0"
+authors = ["Benjamin Fry <benjaminfry@me.com>"]
+edition = "2018"
+
+description = """
+Integration tests for pg-extend
+"""
+
+documentation = "https://docs.rs/pg-extend"
+repository = "https://github.com/bluejekyll/pg-extend-rs"
+
+readme = "README.md"
+license = "MIT/Apache-2.0"
+
+[dependencies]
+postgres = "0.15"

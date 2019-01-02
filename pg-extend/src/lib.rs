@@ -9,8 +9,6 @@
 
 #![warn(missing_docs)]
 
-extern crate no_panic;
-
 pub mod pg_alloc;
 pub mod pg_bool;
 pub mod pg_datum;
