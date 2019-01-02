@@ -2,6 +2,7 @@ extern crate integration_tests;
 
 use integration_tests::*;
 
+#[ignore]
 #[test]
 fn test_panicking() {
     test_in_db("panicking", |conn| {

@@ -17,10 +17,12 @@ matrix:
            PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
+           POSTGRES_TEST_DB=postgres
       before_install:
         - rustup component add rustfmt
       script:
         - cargo test
+        - cargo test -- --ignored
 
         # macos
     - os: osx
@@ -29,11 +31,13 @@ matrix:
            PG_INCLUDE_PATH=/usr/local/Cellar/postgresql/11.1/include/server
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
+           POSTGRES_TEST_DB=postgres
       before_install:
         - rustup component add rustfmt
         - brew upgrade postgresql || brew install postgres
       script: 
         - cargo test
+        - cargo test -- --ignored
 
     # clippy
     - rust: stable

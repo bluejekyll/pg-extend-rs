@@ -47,8 +47,13 @@ pub fn build_sql_create_stmt(name: &str) {
 }
 
 pub fn db_conn() -> Connection {
+    let db_name = env::var("POSTGRES_TEST_DB").expect(
+        "As a precaution, POSTGRES_TEST_DB must be set to ensure that other DBs are not damaged",
+    );
+    let host = env::var("POSTGRES_HOST").unwrap_or_else(|_| "localhost".to_string());
+    let port = env::var("POSTGRES_PORT").unwrap_or_else(|_| "5432".to_string());
     let user = env::var("USER").expect("USER is unset");
-    let conn_str = format!("postgres://{}@localhost:5432/postgres", user);
+    let conn_str = format!("postgres://{}@{}:{}/{}", user, host, port, db_name);
 
     Connection::connect(&conn_str as &str, postgres::TlsMode::None).expect("could not connect")
 }
