@@ -14,9 +14,9 @@ const DYLIB_EXT: &str = "dylib";
 
 #[cfg(not(feature = "pg_allocator"))]
 fn main() {
-    const LIB_NAME: &'static str = env!("CARGO_PKG_NAME");
+    const LIB_NAME: &str = env!("CARGO_PKG_NAME");
 
-    let lib_path = env::args().skip(1).next().unwrap_or_else(|| format!("target/release/lib{}.{}", LIB_NAME, DYLIB_EXT));
+    let lib_path = env::args().nth(1).unwrap_or_else(|| format!("target/release/lib{}.{}", LIB_NAME, DYLIB_EXT));
 
     println!("{}", lib::add_one_pg_create_stmt(&lib_path));
     println!("{}", lib::add_small_one_pg_create_stmt(&lib_path));
