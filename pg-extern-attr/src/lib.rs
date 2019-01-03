@@ -296,6 +296,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
 /// ```
 ///
 #[proc_macro_attribute]
+#[allow(clippy::needless_pass_by_value)]
 pub fn pg_extern(
     _attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,

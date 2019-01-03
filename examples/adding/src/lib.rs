@@ -36,7 +36,7 @@ fn add_big_one(value: i64) -> i64 {
 /// Test the i16 value
 #[pg_extern]
 fn add_together(v1: i64, v2: i32, v3: i16) -> i64 {
-    (v1 + v2 as i64 + v3 as i64)
+    (v1 + i64::from(v2) + i64::from(v3))
 }
 
 

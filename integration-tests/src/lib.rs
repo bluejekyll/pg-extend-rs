@@ -41,29 +41,31 @@ pub fn build_sql_lib(name: &str) {
         .status()
         .expect("failed to run build --lib");
 
-    #[cfg(target_family = "unix")]
-    {
-        use std::fs;
-        use std::os::unix::fs::PermissionsExt;
+    // This was the attempted fix for
+    //
+    // #[cfg(target_family = "unix")]
+    // {
+    //     use std::fs;
+    //     use std::os::unix::fs::PermissionsExt;
 
-        let lib_path = lib_path(name);
-        let metadata = fs::metadata(&lib_path).expect("could not get metadata for library");
-        let mut permissions = metadata.permissions();
+    //     let lib_path = lib_path(name);
+    //     let metadata = fs::metadata(&lib_path).expect("could not get metadata for library");
+    //     let mut permissions = metadata.permissions();
 
-        // making sure the file is readable and executable by the world
-        println!(
-            "making {} world readable and executable",
-            lib_path.display()
-        );
-        permissions.set_mode(0o755);
+    //     // making sure the file is readable and executable by the world
+    //     println!(
+    //         "making {} world readable and executable",
+    //         lib_path.display()
+    //     );
+    //     permissions.set_mode(0o755);
 
-        let lib_dir = lib_path.parent().unwrap();
-        let metadata = fs::metadata(&lib_dir).expect("could not get metadata for library dir");
-        let mut permissions = metadata.permissions();
+    //     let lib_dir = lib_path.parent().unwrap();
+    //     let metadata = fs::metadata(&lib_dir).expect("could not get metadata for library dir");
+    //     let mut permissions = metadata.permissions();
 
-        println!("making {} world readable and executable", lib_dir.display());
-        permissions.set_mode(0o755);
-    }
+    //     println!("making {} world readable and executable", lib_dir.display());
+    //     permissions.set_mode(0o755);
+    // }
 
     assert!(status.success(), "build --lib failed");
 }

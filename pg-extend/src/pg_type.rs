@@ -89,8 +89,8 @@ impl PgType {
     }
 
     /// Return the string representation of this type
-    pub fn as_str(&self) -> &'static str {
-        match *self {
+    pub fn as_str(self) -> &'static str {
+        match self {
             // NULL
             // TODO: this might be incorrect, and may go away
             PgType::Null => "NULL",
@@ -165,7 +165,7 @@ impl PgType {
     }
 
     /// Return the String to be used for the RETURNS statement in SQL
-    pub fn return_stmt(&self) -> String {
+    pub fn return_stmt(self) -> String {
         match self {
             PgType::Null => String::new(),
             ty => format!("RETURNS {}", ty.as_str()),

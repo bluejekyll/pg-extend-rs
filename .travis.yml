@@ -31,7 +31,10 @@ matrix:
         - psql -c 'create database travis_ci_test;' -U ${POSTGRES_USER}
       script:
         - cargo test
-        - cargo test -- --ignored
+        # FIXME: integrattion tests work locally, postgres hits an error:
+        #    could not access file \"/home/travis/build/bluejekyll/pg-extend-rs/integration-tests/target/integration-libs/debug/libadding.so\": Permission denied
+        #     explicitly setting this to 755 on both the lib and the containing directory, doesn't resolve the issue
+        #- cargo test -- --ignored
 
         # macos
     - os: osx
@@ -64,7 +67,7 @@ matrix:
         - rustup component add clippy
         - rustup component add rustfmt
       script:
-        - cargo clippy
+        - cargo clippy -- -D warnings
 
 script:
   - cargo test
