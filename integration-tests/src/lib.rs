@@ -52,7 +52,8 @@ pub fn db_conn() -> Connection {
     );
     let host = env::var("POSTGRES_HOST").unwrap_or_else(|_| "localhost".to_string());
     let port = env::var("POSTGRES_PORT").unwrap_or_else(|_| "5432".to_string());
-    let user = env::var("USER").expect("USER is unset");
+    let user =
+        env::var("POSTGRES_USER").unwrap_or_else(|_| env::var("USER").expect("USER is unset"));
     let conn_str = format!("postgres://{}@{}:{}/{}", user, host, port, db_name);
 
     Connection::connect(&conn_str as &str, postgres::TlsMode::None).expect("could not connect")
