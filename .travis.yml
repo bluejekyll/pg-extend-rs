@@ -28,7 +28,7 @@ matrix:
            POSTGRES_USER=postgres
       before_install:
         - rustup component add rustfmt
-        #- psql -c 'create database travis_ci_test;' -U ${POSTGRES_USER}
+        - psql -c 'create database travis_ci_test;' -U ${POSTGRES_USER}
       script:
         - cargo test
         - cargo test -- --ignored
