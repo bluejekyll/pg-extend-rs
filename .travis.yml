@@ -3,10 +3,17 @@ dist: xenial
 language: rust
 
 addons:
-  postgresql: "11"
+  postgresql: "10"
   apt:
     packages:
-      - postgresql-server-dev-11
+      - postgresql-server-dev-10
+
+services:
+  - postgresql
+
+env:
+  global:
+  - PGPORT=5432
 
 matrix:
   include:
@@ -14,12 +21,14 @@ matrix:
     - rust: stable
       env: NAME=stable
            PG_BASE_INCLUDE=$(pg_config --includedir)
-           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
+           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/10/server
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
-           POSTGRES_TEST_DB=postgres
+           POSTGRES_TEST_DB=travis_ci_test
+           POSTGRES_USER=postgres
       before_install:
         - rustup component add rustfmt
+        #- psql -c 'create database travis_ci_test;' -U ${POSTGRES_USER}
       script:
         - cargo test
         - cargo test -- --ignored
@@ -28,22 +37,27 @@ matrix:
     - os: osx
       rust: stable
       env: NAME=macOS
-           PG_INCLUDE_PATH=/usr/local/Cellar/postgresql/11.1/include/server
+           PG_BASE_INCLUDE=$(pg_config --includedir)
+           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/server
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
-           POSTGRES_TEST_DB=postgres
+           POSTGRES_TEST_DB=travis_ci_test
+           POSTGRES_USER=postgres
       before_install:
         - rustup component add rustfmt
-        - brew upgrade postgresql || brew install postgres
+        # - brew upgrade postgresql || brew install postgres
+        # - $(pg_config --bindir)/pg_ctl -D travis_ci_test initdb
+        # - $(pg_config --bindir)/pg_ctl -D travis_ci_test start
+        # - $(pg_config --bindir)/psql -c 'create database travis_ci_test;' -U postgres
       script: 
         - cargo test
-        - cargo test -- --ignored
+        # - cargo test -- --ignored
 
     # clippy
     - rust: stable
       env: NAME=clippy
            PG_BASE_INCLUDE=$(pg_config --includedir)
-           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/11/server
+           PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/10/server
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
       before_install:
