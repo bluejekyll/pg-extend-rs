@@ -85,3 +85,55 @@ pub fn register_panic_handler() {
         pg_error::log(level, file!(), line!(), module_path!(), format!("panic in Rust extension: {}", info));
     }));
 }
+
+/// auto generate function to output a SQL create statement for the function
+/// 
+/// Until concat_ident! stabilizes, this requires the name to passed with the appended sctring
+///   `_pg_create_stmt`
+/// 
+/// # Example
+/// 
+/// create a binary for the library, like bin.rs, and this will generate a `main()` function in it
+/// 
+/// ```text
+/// extern crate pg_extend;
+///
+/// use pg_extend::pg_create_stmt_bin;
+///
+/// pg_create_stmt_bin!(
+///     add_one_pg_create_stmt,
+///     add_big_one_pg_create_stmt,
+///     add_small_one_pg_create_stmt,
+///     add_together_pg_create_stmt
+/// );
+/// ```
+#[macro_export]
+macro_rules! pg_create_stmt_bin {
+    ( $( $func:ident ),* ) => {
+        use std::env;
+
+        // becuase the lib is a cdylib... maybe there's a better way?
+        #[cfg(not(feature = "pg_allocator"))]
+        mod lib;
+
+        #[cfg(target_os = "linux")]
+        const DYLIB_EXT: &str = "so";
+
+        #[cfg(target_os = "macos")]
+        const DYLIB_EXT: &str = "dylib";
+
+        #[cfg(not(feature = "pg_allocator"))]
+        fn main() {
+            const LIB_NAME: &str = env!("CARGO_PKG_NAME");
+
+            let lib_path = env::args().nth(1).unwrap_or_else(|| format!("target/release/lib{}.{}", LIB_NAME, DYLIB_EXT));
+            
+            $( println!("{}", lib::$func(&lib_path)); )*
+        }
+
+        #[cfg(feature = "pg_allocator")]
+        fn main() {
+            panic!("disable `pg_allocator` feature to print create STMTs")
+        }
+    };
+}

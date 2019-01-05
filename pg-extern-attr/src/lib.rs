@@ -223,9 +223,8 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         func_name, sql_params, func_wrapper_name,
     );
 
-    //panic!("{}", sql_stmt);
-
     // declare a function that can be used to output a create statement for the externed function
+    //   all create statements will be put into a common module for access
     let create_sql_def = quote!(
         #[allow(unused)]
         pub fn #create_sql_name(library_path: &str) -> String {
