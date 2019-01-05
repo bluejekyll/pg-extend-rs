@@ -192,6 +192,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
             ReScanForeignScan: Some(Self::rescan_foreign_scan),
             EndForeignScan: Some(Self::end_foreign_scan),
 
+            #[cfg(not(feature = "postgres9"))]
+            ShutdownForeignScan: None,
+
             GetForeignJoinPaths: None,
             GetForeignUpperPaths: None,
             AddForeignUpdateTargets: None,
@@ -221,6 +224,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
             EstimateDSMForeignScan: None,
             InitializeDSMForeignScan: None,
+
+            #[cfg(not(feature = "postgres9"))]
+            ReInitializeDSMForeignScan: None,
+
             InitializeWorkerForeignScan: None,
         });
         // TODO: this isn't quite right, it will never be from_raw loaded
