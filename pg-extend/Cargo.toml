@@ -18,8 +18,10 @@ build = "build.rs"
 #rustc-flags = "-C link-arg=undefineddynamic_lookup"
 
 [features]
-default = []
-postgres9 = []
+default = ["postgres-10"]
+postgres-9 = []
+postgres-10 = []
+postgres-11 = []
 
 [dependencies]
 
