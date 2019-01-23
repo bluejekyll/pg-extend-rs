@@ -7,7 +7,7 @@
 
 //! Postgres Datum conversions for Rust types
 
-use crate::pg_sys::Datum;
+use crate::pg_sys::{self, Datum};
 use crate::pg_bool;
 
 /// A wrapper type for Postgres Datum's.
@@ -107,6 +107,41 @@ impl From<i64> for PgDatum {
             "Datum not large enough for i64 values"
         );
         PgDatum(Some(value as Datum))
+    }
+}
+
+impl TryFromPgDatum for String {
+    fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
+        use std::ffi::CStr;
+        use std::os::raw::c_char;
+
+        if let Some(datum) = datum.0 {
+            let text_val = datum as *const pg_sys::text;
+
+            let val: *mut c_char = unsafe { pg_sys::text_to_cstring(text_val) };
+            let cstr = unsafe { CStr::from_ptr(val) };
+
+            match cstr.to_str() {
+                Ok(s) => Ok(s.to_owned()),
+                Err(_) => Err("datum was not valid utf8")
+            }
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl From<String> for PgDatum {
+    fn from(value: String) -> Self {
+        use std::ffi::CString;
+        use std::os::raw::c_char;
+
+        let cstr = CString::new(value).expect("This shouldn't fail");
+        let ptr: *const c_char = cstr.as_ptr();
+
+        let text = unsafe { pg_sys::cstring_to_text(ptr) };
+
+        PgDatum(Some(text as Datum))
     }
 }
 
