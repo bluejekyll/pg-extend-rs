@@ -11,8 +11,6 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::CStr;
 
-
-
 // TODO: can we avoid this box?
 /// The foreign data wrapper itself. The next() method of this object
 /// is responsible for creating row objects to return data.
@@ -165,11 +163,26 @@ impl<T: ForeignData> ForeignWrapper<T> {
         // clear the slot
         let slot = pg_sys::ExecClearTuple(slot);
 
-        let ret = if let Some(row) = (*wrapper).state.next() {
-            let mut tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
+        let ret = if let Some(row) = (*wrapper).state.next() {            
             // Get list of attributes
-            let attrs: &[pg_sys::Form_pg_attribute] =
-                std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
+            #[cfg(feature = "postgres-11")]
+            let (tupledesc, attrs) = {
+                let tupledesc = (*(*node).ss.ss_currentRelation).rd_att;
+                let attrs: &[pg_sys::Form_pg_attribute] = 
+                    std::slice::from_raw_parts((*tupledesc).attrs.as_mut_ptr() as *const *mut _, (*tupledesc).natts as usize);
+                
+                (tupledesc, attrs)
+            };
+
+            #[cfg(not(feature = "postgres-11"))]
+            let (tupledesc, attrs) = {
+                let mut tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
+                let attrs: &[pg_sys::Form_pg_attribute] =
+                    std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
+                
+                (tupledesc, attrs)
+            };
+
             // Datum array
             let mut data = vec![0 as pg_sys::Datum; attrs.len()];
             // Boolean array
@@ -190,11 +203,20 @@ impl<T: ForeignData> ForeignWrapper<T> {
                 };
             }
 
+            #[cfg(feature = "postgres-11")]
+            let tuple = pg_sys::heap_form_tuple(
+                tupledesc as *mut _,
+                data.as_mut_slice().as_mut_ptr(),
+                isnull.as_mut_slice().as_mut_ptr(),
+            );
+
+            #[cfg(not(feature = "postgres-11"))]
             let tuple = pg_sys::heap_form_tuple(
                 &mut tupledesc as *mut _,
                 data.as_mut_slice().as_mut_ptr(),
                 isnull.as_mut_slice().as_mut_ptr(),
             );
+
             pg_sys::ExecStoreTuple(
                 tuple,
                 slot,
@@ -219,6 +241,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     /// Postgres creates fdws by having a function return a special
     /// fdw_routine object, which is what this datum is.
     pub fn into_datum() -> pg_sys::Datum {
+        
         let node = Box::new(pg_sys::FdwRoutine {
             type_: pg_sys::NodeTag_T_FdwRoutine,
             GetForeignRelSize: Some(Self::get_foreign_rel_size),
@@ -229,7 +252,14 @@ impl<T: ForeignData> ForeignWrapper<T> {
             ReScanForeignScan: Some(Self::rescan_foreign_scan),
             EndForeignScan: Some(Self::end_foreign_scan),
 
-            #[cfg(not(feature = "postgres9"))]
+            #[cfg(feature = "postgres-11")]
+            BeginForeignInsert: None,
+            #[cfg(feature = "postgres-11")]
+            EndForeignInsert: None,
+            #[cfg(feature = "postgres-11")]
+            ReparameterizeForeignPathByChild: None,
+
+            #[cfg(not(feature = "postgres-9"))]
             ShutdownForeignScan: None,
 
             GetForeignJoinPaths: None,
@@ -262,7 +292,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
             EstimateDSMForeignScan: None,
             InitializeDSMForeignScan: None,
 
-            #[cfg(not(feature = "postgres9"))]
+            #[cfg(not(feature = "postgres-9"))]
             ReInitializeDSMForeignScan: None,
 
             InitializeWorkerForeignScan: None,
