@@ -175,11 +175,11 @@ impl<T: ForeignData> ForeignWrapper<T> {
             };
 
             #[cfg(not(feature = "postgres-11"))]
-            let (tupledesc, attrs) = {
-                let mut tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
+            let (mut tupledesc, attrs) = {
+                let tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
                 let attrs: &[pg_sys::Form_pg_attribute] =
                     std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
-                
+
                 (tupledesc, attrs)
             };
 

@@ -118,8 +118,10 @@ impl TryFromPgDatum for String {
         if let Some(datum) = datum.0 {
             let text_val = datum as *const pg_sys::text;
 
-            let val: *mut c_char = unsafe { pg_sys::text_to_cstring(text_val) };
-            let cstr = unsafe { CStr::from_ptr(val) };
+            let cstr = unsafe {
+                let val: *mut c_char = pg_sys::text_to_cstring(text_val);
+                CStr::from_ptr(val)
+            };
 
             match cstr.to_str() {
                 Ok(s) => Ok(s.to_owned()),
