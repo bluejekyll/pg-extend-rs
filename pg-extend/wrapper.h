@@ -13,4 +13,5 @@
 #include "optimizer/pathnode.h"
 #include "optimizer/planmain.h"
 #include "optimizer/restrictinfo.h"
+#include "utils/builtins.h"
 #include "utils/rel.h"

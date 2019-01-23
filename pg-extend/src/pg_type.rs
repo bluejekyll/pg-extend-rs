@@ -197,6 +197,12 @@ impl PgTypeInfo for i64 {
     }
 }
 
+impl PgTypeInfo for String {
+    fn pg_type() -> PgType {
+        PgType::Text
+    }
+}
+
 impl PgTypeInfo for () {
     fn pg_type() -> PgType {
         PgType::Null
