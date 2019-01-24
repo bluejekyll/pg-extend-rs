@@ -65,10 +65,10 @@ pub fn get_args<'a>(
 ) -> (impl 'a + Iterator<Item=&pg_sys::Datum>, impl 'a + Iterator<Item=pg_bool::Bool>) {
     let num_args = func_call_info.nargs as usize;
 
-    let args = func_call_info.arg[..num_args].into_iter();
+    let args = func_call_info.arg[..num_args].iter();
     let args_null =
         func_call_info.argnull[..num_args]
-        .into_iter()
+        .iter()
         .map(|b| pg_bool::Bool::from(*b));
 
     (args, args_null)
