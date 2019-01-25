@@ -10,6 +10,8 @@
 use crate::pg_sys::{self, Datum};
 use crate::pg_bool;
 
+use std::ffi::{CStr, CString};
+
 /// A wrapper type for Postgres Datum's.
 ///
 /// This simplifies the semantics around Nullability of the Datum value, and provides conversion tools
@@ -120,6 +122,8 @@ impl TryFromPgDatum for String {
 
             let cstr = unsafe {
                 let val: *mut c_char = pg_sys::text_to_cstring(text_val);
+                pg_sys::pfree(text_val as *mut _);
+
                 CStr::from_ptr(val)
             };
 
@@ -141,6 +145,36 @@ impl From<String> for PgDatum {
         let cstr = CString::new(value).expect("This shouldn't fail");
         let ptr: *const c_char = cstr.as_ptr();
 
+        let text = unsafe { pg_sys::cstring_to_text(ptr) };
+
+        PgDatum(Some(text as Datum))
+    }
+}
+
+impl TryFromPgDatum for CString {
+    fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
+        use std::os::raw::c_char;
+
+        if let Some(datum) = datum.0 {
+            let text_val = datum as *const pg_sys::text;
+
+            unsafe {
+                let val: *mut c_char = pg_sys::text_to_cstring(text_val);
+                pg_sys::pfree(text_val as *mut _);
+
+                Ok(CStr::from_ptr(val).to_owned())
+            }
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl From<CString> for PgDatum {
+    fn from(value: CString) -> Self {
+        use std::os::raw::c_char;
+
+        let ptr: *const c_char = value.as_ptr();
         let text = unsafe { pg_sys::cstring_to_text(ptr) };
 
         PgDatum(Some(text as Datum))

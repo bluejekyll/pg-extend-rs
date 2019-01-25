@@ -203,6 +203,12 @@ impl PgTypeInfo for String {
     }
 }
 
+impl PgTypeInfo for std::ffi::CString {
+    fn pg_type() -> PgType {
+        PgType::Text
+    }
+}
+
 impl PgTypeInfo for () {
     fn pg_type() -> PgType {
         PgType::Null

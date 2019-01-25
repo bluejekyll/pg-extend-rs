@@ -187,7 +187,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
             let mut data = vec![0 as pg_sys::Datum; attrs.len()];
             // Boolean array
             let mut isnull = vec![pgbool!(true); attrs.len()];
-            for (i, pattr) in attrs.into_iter().enumerate() {
+            for (i, pattr) in attrs.iter().enumerate() {
                 // TODO: There must be a better way to do this?
                 let result = Self::get_field(&(**pattr), &(*row));
                 match result {
@@ -259,8 +259,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
             #[cfg(feature = "postgres-11")]
             ReparameterizeForeignPathByChild: None,
 
-            #[cfg(not(feature = "postgres-9"))]
+            #[cfg(any(feature = "postgres-10", feature = "postgres-11"))]
             ShutdownForeignScan: None,
+            #[cfg(any(feature = "postgres-10", feature = "postgres-11"))]
+            ReInitializeDSMForeignScan: None,
 
             GetForeignJoinPaths: None,
             GetForeignUpperPaths: None,
@@ -291,9 +293,6 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
             EstimateDSMForeignScan: None,
             InitializeDSMForeignScan: None,
-
-            #[cfg(not(feature = "postgres-9"))]
-            ReInitializeDSMForeignScan: None,
 
             InitializeWorkerForeignScan: None,
         });
