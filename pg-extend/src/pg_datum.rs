@@ -114,26 +114,9 @@ impl From<i64> for PgDatum {
 
 impl TryFromPgDatum for String {
     fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
-        use std::ffi::CStr;
-        use std::os::raw::c_char;
+        let cstr = CString::try_from(datum)?;
 
-        if let Some(datum) = datum.0 {
-            let text_val = datum as *const pg_sys::text;
-
-            let cstr = unsafe {
-                let val: *mut c_char = pg_sys::text_to_cstring(text_val);
-                pg_sys::pfree(text_val as *mut _);
-
-                CStr::from_ptr(val)
-            };
-
-            match cstr.to_str() {
-                Ok(s) => Ok(s.to_owned()),
-                Err(_) => Err("datum was not valid utf8")
-            }
-        } else {
-            Err("datum was NULL")
-        }
+        cstr.into_string().map_err(|_| "String contained non-utf8 data")
     }
 }
 
@@ -160,9 +143,11 @@ impl TryFromPgDatum for CString {
 
             unsafe {
                 let val: *mut c_char = pg_sys::text_to_cstring(text_val);
-                pg_sys::pfree(text_val as *mut _);
+                let cstr = CStr::from_ptr(val).to_owned();
 
-                Ok(CStr::from_ptr(val).to_owned())
+                pg_sys::pfree(val as *mut _);
+
+                Ok(cstr)
             }
         } else {
             Err("datum was NULL")
