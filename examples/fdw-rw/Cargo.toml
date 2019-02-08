@@ -1,0 +1,15 @@
+[package]
+name = "fdw-rw"
+version = "0.1.0"
+authors = ["Ellie Frost <web@stillinbeta.com>"]
+edition = "2018"
+
+[features]
+pg_allocator = []
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
+pg-extend = { version = "*", path = "../../pg-extend" }
