@@ -8,5 +8,6 @@ members = [
     "examples/adding", 
     "examples/panicking",
     "examples/fdw",
+    "examples/fdw-rw",
     "integration-tests",
 ]
