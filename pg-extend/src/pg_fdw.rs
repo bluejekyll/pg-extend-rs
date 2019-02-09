@@ -21,6 +21,23 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// such as making connections or allocating memory should not
     /// happen in this step, but on the first call to next()
     fn begin(server_opts: OptionMap, table_opts: OptionMap) -> Self;
+
+    /// If defined, these columns will always be present in the tuple. This can
+    /// be useful for update and delete operations, which otherwise might be
+    /// missing key fields.
+    fn index_columns(&self) -> Option<Vec<String>> {
+        return None
+    }
+
+    /// Method for UPDATEs. Takes in a new_row (which is a mapping of column
+    /// names to values). indices is the same, but will always include columns
+    /// specified by index_columns. Do not assume columns present in indices
+    /// were present in the UPDATE statement.
+    /// Returns the updated row, or None if no update occured.
+    fn update(&self, _new_row: HashMap<String, pg_datum::PgDatum>, _indices: HashMap<String, pg_datum::PgDatum>) -> Option<Box<ForeignRow>> {
+        pg_error::log(pg_error::Level::Error, file!(), line!(), module_path!(), "Table does not support update");
+        None
+    }
 }
 
 /// The options passed to a server, table, or options
@@ -237,6 +254,33 @@ impl<T: ForeignData> ForeignWrapper<T> {
     /// End the scan and release resources.
     unsafe extern "C" fn end_foreign_scan(_node: *mut pg_sys::ForeignScanState) {}
 
+    unsafe extern "C" fn begin_foreign_modify(
+        _mstate: *mut pg_sys::ModifyTableState,
+        rinfo: *mut pg_sys::ResultRelInfo,
+        _fdw_private: *mut pg_sys::List,
+        _subplan_index: i32,
+        _eflags: i32,
+    ) {
+        // TODO real server options
+        let server_opts = HashMap::new();
+        // TODO real table options
+        let table_opts = HashMap::new();
+        let wrapper = Box::new(Self {
+            state: T::begin(server_opts, table_opts)
+        });
+
+        (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
+    }
+
+    unsafe extern "C" fn exec_foreign_update(
+        _estate: *mut pg_sys::EState,
+        _rinfo: *mut pg_sys::ResultRelInfo,
+        _slot: *mut pg_sys::TupleTableSlot,
+        _plan_slot: *mut pg_sys::TupleTableSlot,
+    ) -> *mut pg_sys::TupleTableSlot {
+        std::ptr::null_mut()
+    }
+
     /// Turn this into an actual foreign data wrapper object.
     /// Postgres creates fdws by having a function return a special
     /// fdw_routine object, which is what this datum is.
@@ -268,10 +312,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
             GetForeignUpperPaths: None,
             AddForeignUpdateTargets: None,
             PlanForeignModify: None,
-            BeginForeignModify: None,
+            BeginForeignModify: Some(Self::begin_foreign_modify),
 
             ExecForeignInsert: None,
-            ExecForeignUpdate: None,
+            ExecForeignUpdate: Some(Self::exec_foreign_update),
             ExecForeignDelete: None,
             EndForeignModify: None,
 

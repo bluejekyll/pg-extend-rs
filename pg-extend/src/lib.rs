@@ -19,7 +19,7 @@ pub mod pg_type;
 pub mod pg_fdw;
 
 /// A macro for marking a library compatible with the Postgres extension framework.
-/// 
+///
 /// This macro was initially inspired from the `pg_module` macro in https://github.com/thehydroimpulse/postgres-extension.rs
 #[macro_export]
 macro_rules! pg_magic {
