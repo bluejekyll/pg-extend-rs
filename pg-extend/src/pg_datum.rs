@@ -16,6 +16,7 @@ use std::ffi::{CStr, CString};
 ///
 /// This simplifies the semantics around Nullability of the Datum value, and provides conversion tools
 ///   between Datum and Rust types
+#[derive(Clone, Debug)]
 pub struct PgDatum(Option<Datum>);
 
 impl PgDatum {

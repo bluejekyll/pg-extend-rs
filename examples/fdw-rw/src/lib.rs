@@ -8,9 +8,10 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
 use pg_extend::{pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
+use pg_extend::pg_datum::TryFromPgDatum;
 
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -79,4 +80,21 @@ impl ForeignData for CacheFDW {
 
         CacheFDW { inner: vecs }
     }
+
+    fn update(&self, new_row: Tuple, indices: Tuple) -> Option<Box<ForeignRow>> {
+        let mut c = get_cache().write().unwrap();
+        let key = indices.get("key");
+        let value = new_row.get("value");
+        match (key, value) {
+            ( Some(key), Some(value) ) => {
+                // TODO: handle errors
+                let key = String::try_from((*key).clone()).unwrap();
+                let value = String::try_from((*value).clone()).unwrap();
+                c.insert(key.clone(), value.clone());
+                Some(Box::new(MyRow{key, value}))
+            }
+            _ => None
+        }
+    }
+
 }
