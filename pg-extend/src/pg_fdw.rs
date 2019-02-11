@@ -319,10 +319,13 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         let fields = Self::tts_to_hashmap(slot);
         let fields_with_index = Self::tts_to_hashmap(plan_slot);
-        (*wrapper).state.update(fields, fields_with_index);
+        let result = (*wrapper).state.update(fields, fields_with_index);
 
-        // TODO return an actual row
-        std::ptr::null_mut()
+        if result.is_none() {
+            std::ptr::null_mut()
+        } else {
+            slot
+        }
     }
 
     /// Turn this into an actual foreign data wrapper object.
