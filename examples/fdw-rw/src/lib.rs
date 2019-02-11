@@ -8,7 +8,7 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::{ForeignRow, ForeignData, OptionMap};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap};
 use pg_extend::{pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
@@ -18,12 +18,12 @@ use std::sync::RwLock;
 // Needs feature(staticmutex)
 // use std::sync::{StaticMutex, MUTEX_INIT};
 // static LOCK: StaticMutex = MUTEX_INIT;
-static mut _CACHE: Option<RwLock<HashMap<String,String>>> = None;
+static mut _CACHE: Option<RwLock<HashMap<String, String>>> = None;
 
-fn get_cache() -> &'static RwLock<HashMap<String,String>> {
+fn get_cache() -> &'static RwLock<HashMap<String, String>> {
     // let _g = LOCK.lock().unwrap();
     unsafe {
-        if let None = _CACHE {
+        if _CACHE.is_none() {
             let rw = RwLock::new(HashMap::new());
             _CACHE = Some(rw)
         }
@@ -35,8 +35,8 @@ fn get_cache() -> &'static RwLock<HashMap<String,String>> {
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
 #[pg_foreignwrapper]
-struct CacheFDW{
-    inner: Vec<(String,String)>,
+struct CacheFDW {
+    inner: Vec<(String, String)>,
 }
 
 struct MyRow {
@@ -64,7 +64,10 @@ impl Iterator for CacheFDW {
     fn next(&mut self) -> Option<Self::Item> {
         match self.inner.pop() {
             None => None,
-            Some((k, v)) => Some(Box::new(MyRow{key: k.to_string(), value: v.to_string()})),
+            Some((k, v)) => Some(Box::new(MyRow {
+                key: k.to_string(),
+                value: v.to_string(),
+            })),
         }
     }
 }

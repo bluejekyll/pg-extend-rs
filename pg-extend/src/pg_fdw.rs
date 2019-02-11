@@ -5,11 +5,14 @@
 //! https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
 //! For use with `#[pg_foreignwrapper]` from pg-extend-attr
 
-
 use crate::{pg_datum, pg_error, pg_sys, pg_type};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::CStr;
+
+/// A map from column names to data types. Tuple order is not currently
+/// preserved, it may be in the future.
+pub type Tuple = HashMap<String, pg_datum::PgDatum>;
 
 // TODO: can we avoid this box?
 /// The foreign data wrapper itself. The next() method of this object
@@ -26,7 +29,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// be useful for update and delete operations, which otherwise might be
     /// missing key fields.
     fn index_columns(&self) -> Option<Vec<String>> {
-        return None
+        None
     }
 
     /// Method for UPDATEs. Takes in a new_row (which is a mapping of column
@@ -34,8 +37,14 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// specified by index_columns. Do not assume columns present in indices
     /// were present in the UPDATE statement.
     /// Returns the updated row, or None if no update occured.
-    fn update(&self, _new_row: HashMap<String, pg_datum::PgDatum>, _indices: HashMap<String, pg_datum::PgDatum>) -> Option<Box<ForeignRow>> {
-        pg_error::log(pg_error::Level::Error, file!(), line!(), module_path!(), "Table does not support update");
+    fn update(&self, _new_row: Tuple, _indices: Tuple) -> Option<Box<ForeignRow>> {
+        pg_error::log(
+            pg_error::Level::Error,
+            file!(),
+            line!(),
+            module_path!(),
+            "Table does not support update",
+        );
         None
     }
 }
@@ -137,33 +146,59 @@ impl<T: ForeignData> ForeignWrapper<T> {
         node: *mut pg_sys::ForeignScanState,
         _eflags: std::os::raw::c_int,
     ) {
-
         // TODO real server options
         let server_opts = HashMap::new();
         // TODO real table options
         let table_opts = HashMap::new();
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts)
+            state: T::begin(server_opts, table_opts),
         });
 
         (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
     }
 
+    fn name_to_string(attname: pg_sys::NameData) -> String {
+        let cname = unsafe { CStr::from_ptr(attname.data.as_ptr()) };
+        cname.to_string_lossy().into()
+    }
+
+
     fn get_field(
         attr: &pg_sys::FormData_pg_attribute,
         row: &ForeignRow,
     ) -> Result<Option<pg_datum::PgDatum>, String> {
-        let cname = unsafe { CStr::from_ptr(attr.attname.data.as_ptr()) };
-        let name = cname
-            .to_str()
-            // TODO
-            .map_err(|e| format!("{:#?}", e))?;
+        let name = Self::name_to_string(attr.attname);
         // let typ = attr.atttypid;
         // TODO not fake
         let typ = pg_type::PgType::Text;
         // TODO get options
         let opts = HashMap::new();
-        row.get_field(name, typ, opts).map_err(|e| e.into())
+        row.get_field(&name, typ, opts).map_err(|e| e.into())
+    }
+
+    fn tts_to_hashmap(slot: *mut pg_sys::TupleTableSlot) -> Tuple {
+        let tupledesc = unsafe {*(*slot).tts_tupleDescriptor };
+        let attrs: &[pg_sys::Form_pg_attribute] = unsafe {
+            std::slice::from_raw_parts(
+                (tupledesc).attrs as *const *mut _,
+                (tupledesc).natts as usize,
+            )
+        };
+        let data: &[pg_sys::Datum] =
+            unsafe { std::slice::from_raw_parts((*slot).tts_values, (*slot).tts_nvalid as usize) };
+
+        let isnull =
+            unsafe { std::slice::from_raw_parts((*slot).tts_isnull, (*slot).tts_nvalid as usize) };
+
+        let mut t = HashMap::new();
+
+        for i in 0..(attrs.len().min(data.len())) {
+            let name = Self::name_to_string(unsafe {(*attrs[i]).attname});
+            let data = pg_datum::PgDatum::from_raw(data[i], isnull[i]);
+            t.insert(name, data);
+        }
+
+        t
     }
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
@@ -180,14 +215,16 @@ impl<T: ForeignData> ForeignWrapper<T> {
         // clear the slot
         let slot = pg_sys::ExecClearTuple(slot);
 
-        let ret = if let Some(row) = (*wrapper).state.next() {            
+        let ret = if let Some(row) = (*wrapper).state.next() {
             // Get list of attributes
             #[cfg(feature = "postgres-11")]
             let (tupledesc, attrs) = {
                 let tupledesc = (*(*node).ss.ss_currentRelation).rd_att;
-                let attrs: &[pg_sys::Form_pg_attribute] = 
-                    std::slice::from_raw_parts((*tupledesc).attrs.as_mut_ptr() as *const *mut _, (*tupledesc).natts as usize);
-                
+                let attrs: &[pg_sys::Form_pg_attribute] = std::slice::from_raw_parts(
+                    (*tupledesc).attrs.as_mut_ptr() as *const *mut _,
+                    (*tupledesc).natts as usize,
+                );
+
                 (tupledesc, attrs)
             };
 
@@ -266,7 +303,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         // TODO real table options
         let table_opts = HashMap::new();
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts)
+            state: T::begin(server_opts, table_opts),
         });
 
         (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
@@ -274,10 +311,17 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
     unsafe extern "C" fn exec_foreign_update(
         _estate: *mut pg_sys::EState,
-        _rinfo: *mut pg_sys::ResultRelInfo,
-        _slot: *mut pg_sys::TupleTableSlot,
-        _plan_slot: *mut pg_sys::TupleTableSlot,
+        rinfo: *mut pg_sys::ResultRelInfo,
+        slot: *mut pg_sys::TupleTableSlot,
+        plan_slot: *mut pg_sys::TupleTableSlot,
     ) -> *mut pg_sys::TupleTableSlot {
+        let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
+
+        let fields = Self::tts_to_hashmap(slot);
+        let fields_with_index = Self::tts_to_hashmap(plan_slot);
+        (*wrapper).state.update(fields, fields_with_index);
+
+        // TODO return an actual row
         std::ptr::null_mut()
     }
 
@@ -285,7 +329,6 @@ impl<T: ForeignData> ForeignWrapper<T> {
     /// Postgres creates fdws by having a function return a special
     /// fdw_routine object, which is what this datum is.
     pub fn into_datum() -> pg_sys::Datum {
-        
         let node = Box::new(pg_sys::FdwRoutine {
             type_: pg_sys::NodeTag_T_FdwRoutine,
             GetForeignRelSize: Some(Self::get_foreign_rel_size),
