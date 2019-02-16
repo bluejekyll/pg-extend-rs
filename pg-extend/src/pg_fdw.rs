@@ -37,13 +37,27 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// specified by index_columns. Do not assume columns present in indices
     /// were present in the UPDATE statement.
     /// Returns the updated row, or None if no update occured.
-    fn update(&self, _new_row: Tuple, _indices: Tuple) -> Option<Box<ForeignRow>> {
+    fn update(&self, _new_row: &Tuple, _indices: &Tuple) -> Option<Box<ForeignRow>> {
         pg_error::log(
             pg_error::Level::Error,
             file!(),
             line!(),
             module_path!(),
             "Table does not support update",
+        );
+        None
+    }
+
+    /// Method for INSERTs. Takes in new_row (which is a mapping of column
+    /// names to values). Returns the inserted row, or None if no insert
+    /// occurred.
+    fn insert(&self, _new_row: &Tuple) -> Option<Box<ForeignRow>> {
+        pg_error::log(
+            pg_error::Level::Error,
+            file!(),
+            line!(),
+            module_path!(),
+            "Table does not support insert",
         );
         None
     }
@@ -159,7 +173,19 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
     fn name_to_string(attname: pg_sys::NameData) -> String {
         let cname = unsafe { CStr::from_ptr(attname.data.as_ptr()) };
-        cname.to_string_lossy().into()
+        match cname.to_str() {
+            Ok(s) => s.into(),
+            Err(err) => {
+                pg_error::log(
+                    pg_error::Level::Error,
+                    file!(),
+                    line!(),
+                    module_path!(),
+                    format!("Unicode error {}", err)
+                );
+                String::new()
+            }
+        }
     }
 
 
@@ -176,14 +202,14 @@ impl<T: ForeignData> ForeignWrapper<T> {
         row.get_field(&name, typ, opts).map_err(|e| e.into())
     }
 
-    fn tts_to_hashmap(slot: *mut pg_sys::TupleTableSlot) -> Tuple {
-        let tupledesc = unsafe {*(*slot).tts_tupleDescriptor };
-        let attrs: &[pg_sys::Form_pg_attribute] = unsafe {
-            std::slice::from_raw_parts(
-                (tupledesc).attrs as *const *mut _,
-                (tupledesc).natts as usize,
-            )
-        };
+    fn tts_to_hashmap(slot: *mut pg_sys::TupleTableSlot, tupledesc: &pg_sys::TupleDesc) -> Tuple {
+        let attrs = unsafe { Self::tupdesc_attrs(tupledesc) };
+
+        // Make sure the slot is fully populated
+        unsafe {
+            pg_sys::slot_getallattrs(slot)
+        }
+
         let data: &[pg_sys::Datum] =
             unsafe { std::slice::from_raw_parts((*slot).tts_values, (*slot).tts_nvalid as usize) };
 
@@ -201,6 +227,16 @@ impl<T: ForeignData> ForeignWrapper<T> {
         t
     }
 
+    unsafe fn tupdesc_attrs(tupledesc: &pg_sys::TupleDesc) -> &[pg_sys::Form_pg_attribute] {
+        let tupledesc = *tupledesc;
+        #[cfg(feature = "postgres-11")]
+        let attrs = (*tupledesc).attrs.as_ptr() as *const _;
+        #[cfg(not(feature = "postgres-11"))]
+        let attrs = (*tupledesc).attrs;
+
+        std::slice::from_raw_parts(attrs, (*tupledesc).natts as usize)
+    }
+
     /// Retrieve next row from the result set, or clear tuple slot to indicate
     ///	EOF.
     /// Fetch one row from the foreign
@@ -216,26 +252,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let slot = pg_sys::ExecClearTuple(slot);
 
         let ret = if let Some(row) = (*wrapper).state.next() {
-            // Get list of attributes
-            #[cfg(feature = "postgres-11")]
-            let (tupledesc, attrs) = {
-                let tupledesc = (*(*node).ss.ss_currentRelation).rd_att;
-                let attrs: &[pg_sys::Form_pg_attribute] = std::slice::from_raw_parts(
-                    (*tupledesc).attrs.as_mut_ptr() as *const *mut _,
-                    (*tupledesc).natts as usize,
-                );
-
-                (tupledesc, attrs)
-            };
-
-            #[cfg(not(feature = "postgres-11"))]
-            let (mut tupledesc, attrs) = {
-                let tupledesc = *(*(*node).ss.ss_currentRelation).rd_att;
-                let attrs: &[pg_sys::Form_pg_attribute] =
-                    std::slice::from_raw_parts(tupledesc.attrs, tupledesc.natts as usize);
-
-                (tupledesc, attrs)
-            };
+            let tupledesc = (*(*node).ss.ss_currentRelation).rd_att;
+            let attrs = Self::tupdesc_attrs(&tupledesc);
 
             // Datum array
             let mut data = vec![0 as pg_sys::Datum; attrs.len()];
@@ -266,7 +284,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
             #[cfg(not(feature = "postgres-11"))]
             let tuple = pg_sys::heap_form_tuple(
-                &mut tupledesc as *mut _,
+                tupledesc as *mut _,
                 data.as_mut_slice().as_mut_ptr(),
                 isnull.as_mut_slice().as_mut_ptr(),
             );
@@ -317,13 +335,38 @@ impl<T: ForeignData> ForeignWrapper<T> {
     ) -> *mut pg_sys::TupleTableSlot {
         let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
 
-        let fields = Self::tts_to_hashmap(slot);
-        let fields_with_index = Self::tts_to_hashmap(plan_slot);
-        let result = (*wrapper).state.update(fields, fields_with_index);
+        let fields = Self::tts_to_hashmap(slot, &(*slot).tts_tupleDescriptor);
+        let fields_with_index = Self::tts_to_hashmap(plan_slot, &(*plan_slot).tts_tupleDescriptor);
+        let result = (*wrapper).state.update(&fields, &fields_with_index);
 
         if result.is_none() {
             std::ptr::null_mut()
         } else {
+            // TODO: actually use result
+            slot
+        }
+    }
+
+    unsafe extern "C" fn exec_foreign_insert(
+        _estate: *mut pg_sys::EState,
+        rinfo: *mut pg_sys::ResultRelInfo,
+        slot: *mut pg_sys::TupleTableSlot,
+        _plan_slot: *mut pg_sys::TupleTableSlot,
+    ) -> *mut pg_sys::TupleTableSlot {
+        let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
+
+        let tupledesc = (*(*rinfo).ri_RelationDesc).rd_att;
+        let fields = Self::tts_to_hashmap(slot, &tupledesc);
+
+        let result = (*wrapper).state.insert(&fields);
+
+        // TODO: Proper destructor for this
+        (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
+
+        if result.is_none() {
+            std::ptr::null_mut()
+        } else {
+            // TODO: actually use result
             slot
         }
     }
@@ -360,7 +403,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
             PlanForeignModify: None,
             BeginForeignModify: Some(Self::begin_foreign_modify),
 
-            ExecForeignInsert: None,
+            ExecForeignInsert: Some(Self::exec_foreign_insert),
             ExecForeignUpdate: Some(Self::exec_foreign_update),
             ExecForeignDelete: None,
             EndForeignModify: None,
