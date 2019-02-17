@@ -6,6 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 
 extern crate bindgen;
+extern crate clang;
 
 use std::collections::HashSet;
 use std::env;
@@ -16,6 +17,7 @@ fn main() {
 
     // Re-run this if wrapper.h changes
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-env-changed=PG_INCLUDE_PATH");
 
     let pg_include = env::var("PG_INCLUDE_PATH")
         .expect("set environment variable PG_INCLUDE_PATH to the Postgres install include dir, e.g. /var/lib/pgsql/include/server");
@@ -55,6 +57,9 @@ fn main() {
     bindings
         .write_to_file(out_path)
         .expect("Couldn't write bindings!");
+
+    let feature_version = get_postgres_feature_version(pg_include);
+    println!("cargo:rustc-cfg=feature=\"{}\"", feature_version)
 }
 
 #[derive(Debug)]
@@ -67,5 +72,32 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
         } else {
             bindgen::callbacks::MacroParsingBehavior::Default
         }
+    }
+}
+
+fn get_postgres_feature_version(pg_include: String) -> &'static str {
+    let clang = clang::Clang::new().unwrap();
+    let index = clang::Index::new(&clang, false, false);
+    let repr = index.parser("pg_majorversion.h")
+        .arguments(&[format!("-I{}", pg_include)])
+        .parse()
+        .expect("failed to parse pg_config.h");
+
+    // Find the variable declaration
+    let major_version = repr.get_entity().get_children().into_iter().find(|e| {
+        e.get_kind() == clang::EntityKind::VarDecl
+            && e.get_name() == Some("pg_majorversion".into())
+    }).expect("Couldn't find major version");
+
+    // Find the string literal within the declaration
+    let string_literal = major_version.get_children().into_iter().find(|e| {
+        e.get_kind() == clang::EntityKind::StringLiteral
+    }).expect("couldn't find string literal for major version");
+
+    match string_literal.get_display_name().unwrap().as_str() {
+        "\"9\"" => "postgres-9",
+        "\"10\"" => "postgres-10",
+        "\"11\"" => "postgres-11",
+        val => panic!("unknown postgres version {:?}", val),
     }
 }
