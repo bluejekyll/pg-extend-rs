@@ -217,7 +217,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         row.get_field(&name, typ, opts).map_err(|e| e.into())
     }
 
-    fn tts_to_hashmap(slot: *mut pg_sys::TupleTableSlot, tupledesc: &pg_sys::TupleDesc) -> Tuple {
+    fn tts_to_hashmap(slot: *mut pg_sys::TupleTableSlot, tupledesc: pg_sys::TupleDesc) -> Tuple {
         let attrs = unsafe { Self::tupdesc_attrs(tupledesc) };
 
         // Make sure the slot is fully populated
@@ -242,8 +242,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
         t
     }
 
-    unsafe fn tupdesc_attrs(tupledesc: &pg_sys::TupleDesc) -> &[pg_sys::Form_pg_attribute] {
-        let tupledesc = *tupledesc;
+    // This isn't quite 'static, but it will last for the duration of the
+    // callback, which is good enough
+    unsafe fn tupdesc_attrs(tupledesc: pg_sys::TupleDesc) -> &'static [pg_sys::Form_pg_attribute] {
         #[cfg(feature = "postgres-11")]
         let attrs = (*tupledesc).attrs.as_ptr() as *const _;
         #[cfg(not(feature = "postgres-11"))]
@@ -268,7 +269,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         let ret = if let Some(row) = (*wrapper).state.next() {
             let tupledesc = (*(*node).ss.ss_currentRelation).rd_att;
-            let attrs = Self::tupdesc_attrs(&tupledesc);
+            let attrs = Self::tupdesc_attrs(tupledesc);
 
             // Datum array
             let mut data = vec![0 as pg_sys::Datum; attrs.len()];
@@ -338,8 +339,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
             // Build a map of column names to attributes
             let attrs: HashMap<String, &pg_sys::Form_pg_attribute> =
-                Self::tupdesc_attrs(&(*target_relation).rd_att)
-                .into_iter()
+                Self::tupdesc_attrs((*target_relation).rd_att)
+                .iter()
                 .map(|rel| (Self::name_to_string((**rel).attname), rel))
                 .collect();
 
@@ -418,8 +419,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
     ) -> *mut pg_sys::TupleTableSlot {
         let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
 
-        let fields = Self::tts_to_hashmap(slot, &(*slot).tts_tupleDescriptor);
-        let fields_with_index = Self::tts_to_hashmap(plan_slot, &(*plan_slot).tts_tupleDescriptor);
+        let fields = Self::tts_to_hashmap(slot, (*slot).tts_tupleDescriptor);
+        let fields_with_index = Self::tts_to_hashmap(plan_slot, (*plan_slot).tts_tupleDescriptor);
         let result = (*wrapper).state.update(&fields, &fields_with_index);
 
         if result.is_none() {
@@ -438,7 +439,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     ) -> *mut pg_sys::TupleTableSlot {
         let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
 
-        let fields_with_index = Self::tts_to_hashmap(plan_slot, &(*plan_slot).tts_tupleDescriptor);
+        let fields_with_index = Self::tts_to_hashmap(plan_slot, (*plan_slot).tts_tupleDescriptor);
 
         let result = (*wrapper).state.delete(&fields_with_index);
 
@@ -462,7 +463,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
 
         let tupledesc = (*(*rinfo).ri_RelationDesc).rd_att;
-        let fields = Self::tts_to_hashmap(slot, &tupledesc);
+        let fields = Self::tts_to_hashmap(slot, tupledesc);
 
         let result = (*wrapper).state.insert(&fields);
 

@@ -133,7 +133,7 @@ impl ForeignData for CacheFDW {
                     file!(),
                     line!(),
                     module_path!(),
-                    format!("Delete called without Key"),
+                    "Delete called without Key".to_string(),
                 );
                 None
             }
