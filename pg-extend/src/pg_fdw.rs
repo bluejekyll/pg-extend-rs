@@ -28,7 +28,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// If defined, these columns will always be present in the tuple. This can
     /// be useful for update and delete operations, which otherwise might be
     /// missing key fields.
-    fn index_columns(&self) -> Option<Vec<String>> {
+    fn index_columns(_server_opts: OptionMap, _table_opts: OptionMap) -> Option<Vec<String>> {
         None
     }
 
@@ -58,6 +58,20 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
             line!(),
             module_path!(),
             "Table does not support insert",
+        );
+        None
+    }
+
+    /// Method for DELETEs. Takes in a indices is the same, which consists of columns
+    /// specified by index_columns.
+    /// Returns the deleted row, or None if no row was deleted.
+    fn delete(&self, _indices: &Tuple) -> Option<Box<ForeignRow>> {
+        pg_error::log(
+            pg_error::Level::Error,
+            file!(),
+            line!(),
+            module_path!(),
+            "Table does not support delete",
         );
         None
     }
@@ -164,6 +178,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let server_opts = HashMap::new();
         // TODO real table options
         let table_opts = HashMap::new();
+
         let wrapper = Box::new(Self {
             state: T::begin(server_opts, table_opts),
         });
@@ -309,6 +324,73 @@ impl<T: ForeignData> ForeignWrapper<T> {
     /// End the scan and release resources.
     unsafe extern "C" fn end_foreign_scan(_node: *mut pg_sys::ForeignScanState) {}
 
+    unsafe extern "C" fn add_foreign_update_targets(
+        parsetree: *mut pg_sys::Query,
+        _target_rte: *mut pg_sys::RangeTblEntry,
+        target_relation: pg_sys::Relation
+    ) {
+        // TODO real server options
+        let server_opts = HashMap::new();
+        // TODO real table options
+        let table_opts = HashMap::new();
+
+        if let Some(keys) = T::index_columns(server_opts, table_opts) {
+
+            // Build a map of column names to attributes
+            let attrs: HashMap<String, &pg_sys::Form_pg_attribute> =
+                Self::tupdesc_attrs(&(*target_relation).rd_att)
+                .into_iter()
+                .map(|rel| (Self::name_to_string((**rel).attname), rel))
+                .collect();
+
+
+            for key in keys {
+                // find the matching column
+                let attr = match attrs.get(&key) {
+                    Some(attr) => *(*attr),
+                    None => {
+                        pg_error::log(
+                            pg_error::Level::Error,
+                            file!(),
+                            line!(),
+                            module_path!(),
+                            format!("Table has no such key {}", key)
+                        );
+                        continue
+                    }
+                };
+
+                let var = pg_sys::makeVar(
+                    (*parsetree).resultRelation as u32,
+                    1,
+                    (*attr).atttypid,
+                    (*attr).atttypmod,
+                    0 as pg_sys::Oid, // InvalidOid
+                    0
+                );
+
+                // TODO: error handling
+
+                let ckey = std::ffi::CString::new(key).unwrap();
+                let list = (*parsetree).targetList;
+                let list_size = if list.is_null() {
+                    0
+                } else {
+                    (*list).length
+                };
+
+                let tle = pg_sys::makeTargetEntry(
+                    var as *mut pg_sys::Expr,
+                    (list_size + 1) as i16,
+                    pg_sys::pstrdup(ckey.as_ptr()),
+                    pgbool!(true)
+                );
+
+                (*parsetree).targetList = pg_sys::lappend((*parsetree).targetList, tle as *mut std::ffi::c_void)
+            }
+        }
+    }
+
     unsafe extern "C" fn begin_foreign_modify(
         _mstate: *mut pg_sys::ModifyTableState,
         rinfo: *mut pg_sys::ResultRelInfo,
@@ -320,6 +402,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let server_opts = HashMap::new();
         // TODO real table options
         let table_opts = HashMap::new();
+
         let wrapper = Box::new(Self {
             state: T::begin(server_opts, table_opts),
         });
@@ -338,6 +421,29 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let fields = Self::tts_to_hashmap(slot, &(*slot).tts_tupleDescriptor);
         let fields_with_index = Self::tts_to_hashmap(plan_slot, &(*plan_slot).tts_tupleDescriptor);
         let result = (*wrapper).state.update(&fields, &fields_with_index);
+
+        if result.is_none() {
+            std::ptr::null_mut()
+        } else {
+            // TODO: actually use result
+            slot
+        }
+    }
+
+    unsafe extern "C" fn exec_foreign_delete(
+        _estate: *mut pg_sys::EState,
+        rinfo: *mut pg_sys::ResultRelInfo,
+        slot: *mut pg_sys::TupleTableSlot,
+        plan_slot: *mut pg_sys::TupleTableSlot,
+    ) -> *mut pg_sys::TupleTableSlot {
+        let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
+
+        let fields_with_index = Self::tts_to_hashmap(plan_slot, &(*plan_slot).tts_tupleDescriptor);
+
+        let result = (*wrapper).state.delete(&fields_with_index);
+
+        // TODO: Proper destructor for this
+        (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
 
         if result.is_none() {
             std::ptr::null_mut()
@@ -399,13 +505,13 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
             GetForeignJoinPaths: None,
             GetForeignUpperPaths: None,
-            AddForeignUpdateTargets: None,
+            AddForeignUpdateTargets: Some(Self::add_foreign_update_targets),
             PlanForeignModify: None,
             BeginForeignModify: Some(Self::begin_foreign_modify),
 
             ExecForeignInsert: Some(Self::exec_foreign_insert),
             ExecForeignUpdate: Some(Self::exec_foreign_update),
-            ExecForeignDelete: None,
+            ExecForeignDelete: Some(Self::exec_foreign_delete),
             EndForeignModify: None,
 
             IsForeignRelUpdatable: None,

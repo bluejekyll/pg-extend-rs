@@ -6,10 +6,14 @@
 // copied, modified, or distributed except according to those terms.
 
 #include "postgres.h"
+#include "postgres_ext.h"
 #include "access/relscan.h"
+#include "access/sysattr.h"
 #include "catalog/pg_type.h"
 #include "executor/spi.h"
 #include "foreign/fdwapi.h"
+#include "nodes/makefuncs.h"
+#include "nodes/pg_list.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/planmain.h"
 #include "optimizer/restrictinfo.h"
