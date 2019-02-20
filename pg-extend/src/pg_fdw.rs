@@ -335,18 +335,18 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         if let Some(keys) = T::index_columns(server_opts, table_opts) {
 
-            // Build a map of column names to attributes
-            let attrs: HashMap<String, &pg_sys::Form_pg_attribute> =
+            // Build a map of column names to attributes and column index
+            let attrs: HashMap<String, (&pg_sys::Form_pg_attribute, usize)> =
                 Self::tupdesc_attrs(&*(*target_relation).rd_att)
                 .iter()
-                .map(|rel| (Self::name_to_string((**rel).attname), rel))
+                .enumerate()
+                .map(|(idx, rel)| (Self::name_to_string((**rel).attname), (rel, idx)))
                 .collect();
-
 
             for key in keys {
                 // find the matching column
-                let attr = match attrs.get(&key) {
-                    Some(attr) => *(*attr),
+                let (attr, idx) = match attrs.get(&key) {
+                    Some((attr, idx)) => (*(*attr), idx),
                     None => {
                         pg_error::log(
                             pg_error::Level::Error,
@@ -361,7 +361,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
                 let var = pg_sys::makeVar(
                     (*parsetree).resultRelation as u32,
-                    1,
+                    *idx as i16, // points to the position in the tuple
                     (*attr).atttypid,
                     (*attr).atttypmod,
                     0 as pg_sys::Oid, // InvalidOid
