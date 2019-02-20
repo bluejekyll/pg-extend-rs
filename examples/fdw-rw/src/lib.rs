@@ -74,7 +74,7 @@ impl Iterator for CacheFDW {
 }
 
 impl ForeignData for CacheFDW {
-    fn begin(_sopts: OptionMap, _topts: OptionMap) -> Self {
+    fn begin(_sopts: OptionMap, _topts: OptionMap, _table_name: String) -> Self {
         let c = get_cache().read().unwrap();
         let vecs = c.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 

@@ -12,6 +12,7 @@
 #include "catalog/pg_type.h"
 #include "executor/spi.h"
 #include "foreign/fdwapi.h"
+#include "foreign/foreign.h"
 #include "nodes/makefuncs.h"
 #include "nodes/pg_list.h"
 #include "optimizer/pathnode.h"
@@ -19,3 +20,4 @@
 #include "optimizer/restrictinfo.h"
 #include "utils/builtins.h"
 #include "utils/rel.h"
+#include "utils/lsyscache.h"
