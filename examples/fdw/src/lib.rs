@@ -56,7 +56,7 @@ impl Iterator for DefaultFDW {
 }
 
 impl ForeignData for DefaultFDW {
-    fn begin(_sopts: OptionMap, _topts: OptionMap) -> Self {
+    fn begin(_sopts: OptionMap, _topts: OptionMap, _table_name: String) -> Self {
         DefaultFDW {i: 0}
     }
 }

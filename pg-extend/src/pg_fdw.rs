@@ -23,7 +23,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// Called when a scan is initiated. Note that any heavy set up
     /// such as making connections or allocating memory should not
     /// happen in this step, but on the first call to next()
-    fn begin(server_opts: OptionMap, table_opts: OptionMap) -> Self;
+    fn begin(server_opts: OptionMap, table_opts: OptionMap, table_name: String) -> Self;
 
     /// If defined, these columns will always be present in the tuple. This can
     /// be useful for update and delete operations, which otherwise might be
@@ -179,8 +179,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
         // TODO real table options
         let table_opts = HashMap::new();
 
+        let rel = *(*node).ss.ss_currentRelation;
+        let name = Self::get_table_name(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts),
+            state: T::begin(server_opts, table_opts, name),
         });
 
         (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
@@ -190,6 +192,26 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let cname = unsafe { CStr::from_ptr(attname.data.as_ptr()) };
         match cname.to_str() {
             Ok(s) => s.into(),
+            Err(err) => {
+                pg_error::log(
+                    pg_error::Level::Error,
+                    file!(),
+                    line!(),
+                    module_path!(),
+                    format!("Unicode error {}", err)
+                );
+                String::new()
+            }
+        }
+    }
+
+    unsafe fn get_table_name(rel: &pg_sys::RelationData) -> String {
+        let table = pg_sys::GetForeignTable(rel.rd_id);
+        let raw_name = pg_sys::get_rel_name((*table).relid);
+
+        let cname = std::ffi::CStr::from_ptr(raw_name);
+        match cname.to_str() {
+            Ok(name) => name.into(),
             Err(err) => {
                 pg_error::log(
                     pg_error::Level::Error,
@@ -402,8 +424,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
         // TODO real table options
         let table_opts = HashMap::new();
 
+        let rel = *(*rinfo).ri_RelationDesc;
+        let name = Self::get_table_name(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts),
+            state: T::begin(server_opts, table_opts, name),
         });
 
         (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
