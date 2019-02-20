@@ -383,7 +383,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
                 let var = pg_sys::makeVar(
                     (*parsetree).resultRelation as u32,
-                    *idx as i16, // points to the position in the tuple
+                    *idx as i16 + 1, // points to the position in the tuple, 1-indexed
                     (*attr).atttypid,
                     (*attr).atttypmod,
                     0 as pg_sys::Oid, // InvalidOid
