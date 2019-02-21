@@ -28,7 +28,11 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// If defined, these columns will always be present in the tuple. This can
     /// be useful for update and delete operations, which otherwise might be
     /// missing key fields.
-    fn index_columns(_server_opts: OptionMap, _table_opts: OptionMap) -> Option<Vec<String>> {
+    fn index_columns(
+        _server_opts: OptionMap,
+        _table_opts: OptionMap,
+        _table_name: String
+    ) -> Option<Vec<String>> {
         None
     }
 
@@ -355,7 +359,13 @@ impl<T: ForeignData> ForeignWrapper<T> {
         // TODO real table options
         let table_opts = HashMap::new();
 
-        if let Some(keys) = T::index_columns(server_opts, table_opts) {
+        let table_name = Self::get_table_name(&*target_relation);
+
+        if let Some(keys) = T::index_columns(
+            server_opts,
+            table_opts,
+            table_name
+        ) {
 
             // Build a map of column names to attributes and column index
             let attrs: HashMap<String, (&pg_sys::Form_pg_attribute, usize)> =
