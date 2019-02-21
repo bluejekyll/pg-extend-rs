@@ -81,7 +81,11 @@ impl ForeignData for CacheFDW {
         CacheFDW { inner: vecs }
     }
 
-    fn index_columns(_sopts: OptionMap, _topts: OptionMap) -> Option<Vec<String>> {
+    fn index_columns(
+        _sopts: OptionMap,
+        _topts: OptionMap,
+        _tn: String,
+    ) -> Option<Vec<String>> {
         Some(vec!["key".into()])
     }
 
