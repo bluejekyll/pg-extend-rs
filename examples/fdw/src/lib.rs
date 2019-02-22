@@ -32,6 +32,7 @@ struct MyRow {
     i: i32,
 }
 
+
 impl ForeignRow for MyRow {
     fn get_field(
         &self,
@@ -58,5 +59,12 @@ impl Iterator for DefaultFDW {
 impl ForeignData for DefaultFDW {
     fn begin(_sopts: OptionMap, _topts: OptionMap, _table_name: String) -> Self {
         DefaultFDW {i: 0}
+    }
+
+    fn schema(_server_opts: OptionMap, server_name: String, _remote_schema: String, local_schema: String) -> Option<Vec<String>> {
+        Some(vec!(format!(
+            "CREATE FOREIGN TABLE {schema}.mytable (number Integer) SERVER {server}",
+            server=server_name,
+            schema=local_schema)))
     }
 }

@@ -81,6 +81,19 @@ impl ForeignData for CacheFDW {
         CacheFDW { inner: vecs }
     }
 
+    fn schema(
+        _sopts: OptionMap,
+        server_name: String,
+        _rschema: String,
+        lschema: String
+    ) -> Option<Vec<String>> {
+        Some(vec!(format!("
+CREATE FOREIGN TABLE {schema}.mytable (
+  key text,
+  value text) SERVER {server}
+", server=server_name, schema=lschema)))
+    }
+
     fn index_columns(
         _sopts: OptionMap,
         _topts: OptionMap,
