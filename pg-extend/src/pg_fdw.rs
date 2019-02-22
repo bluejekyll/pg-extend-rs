@@ -546,20 +546,17 @@ impl<T: ForeignData> ForeignWrapper<T> {
         };
 
         // Concat all the statements together
-        let buf: Vec<u8> = stmts.iter()
-            // TODO: can we avoid this clone()?
-            .flat_map(move |s| CString::new((*s).clone()).unwrap().into_bytes_with_nul())
-            .collect();
-        let size = buf.len();
-        let buf = buf.as_slice().as_ptr() as *const std::ffi::c_void;
+        let mut list = std::ptr::null_mut() as *mut pg_sys::List;
 
-        // make a buffer postgres controls
-        let mem = pg_sys::palloc0(size);
-        // memcpy into the buffer
-        std::ptr::copy(buf, mem, size);
+        for stmt in stmts {
+            let cstmt = CString::new(stmt).unwrap();
 
-        // make a list
-        pg_sys::lappend(std::ptr::null_mut() as *mut pg_sys::List, mem)
+            let dup = pg_sys::pstrdup(cstmt.as_ptr()) as *mut std::ffi::c_void;
+            list = pg_sys::lappend(list, dup);
+        }
+
+
+        list
     }
 
     /// Turn this into an actual foreign data wrapper object.
