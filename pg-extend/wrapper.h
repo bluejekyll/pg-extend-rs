@@ -13,6 +13,7 @@
 #include "executor/spi.h"
 #include "foreign/fdwapi.h"
 #include "foreign/foreign.h"
+#include "lib/stringinfo.h"
 #include "nodes/makefuncs.h"
 #include "nodes/pg_list.h"
 #include "optimizer/pathnode.h"

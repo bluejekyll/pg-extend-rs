@@ -8,7 +8,7 @@
 use crate::{pg_datum, pg_error, pg_sys, pg_type};
 use std::boxed::Box;
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{CStr,CString};
 
 /// A map from column names to data types. Tuple order is not currently
 /// preserved, it may be in the future.
@@ -31,8 +31,22 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     fn index_columns(
         _server_opts: OptionMap,
         _table_opts: OptionMap,
-        _table_name: String
+        _table_name: String,
     ) -> Option<Vec<String>> {
+        None
+    }
+
+    /// Method for IMPORT FOREIGN SCHEMA. Use one element per SQL statement to be
+    /// executed.
+    /// remote_schema and local_schema are the names of the "schema" (a
+    /// collection of tables) passed to IMPORT FOREIGN SCHEMA.
+    /// server_name is the name of the table.
+    /// Returned statements must be of the form
+    /// `CREATE FOREIGN TABLE local_schema.<tablename> (<fields>) SERVER server`
+    /// Remote schema can be used or ignored.
+    /// At present all other options passed in are ignored, in the future this
+    /// method might take options for which tables to import.
+    fn schema(_server_opts: OptionMap, _server_name: String, _remote_schema: String, _local_schema: String) -> Option<Vec<String>> {
         None
     }
 
@@ -510,6 +524,44 @@ impl<T: ForeignData> ForeignWrapper<T> {
         }
     }
 
+    unsafe extern "C" fn import_foreign_schema(
+        stmt: *mut pg_sys::ImportForeignSchemaStmt,
+        _server_oid: pg_sys::Oid
+    ) -> *mut pg_sys::List {
+        // TODO real server opts
+        let server_opts = HashMap::new();
+
+        let server_name_cstr = CStr::from_ptr((*stmt).server_name);
+        let remote_schema_cstr = CStr::from_ptr((*stmt).remote_schema);
+        let local_schema_cstr = CStr::from_ptr((*stmt).local_schema);
+
+        // TODO: handle unicode errors here
+        let server_name = server_name_cstr.to_string_lossy().to_string();
+        let remote_schema = remote_schema_cstr.to_string_lossy().to_string();
+        let local_schema = local_schema_cstr.to_string_lossy().to_string();
+
+        let stmts = match T::schema(server_opts, server_name, remote_schema, local_schema) {
+            Some(s) => s,
+            None => return std::ptr::null_mut(),
+        };
+
+        // Concat all the statements together
+        let buf: Vec<u8> = stmts.iter()
+            // TODO: can we avoid this clone()?
+            .flat_map(move |s| CString::new((*s).clone()).unwrap().into_bytes_with_nul())
+            .collect();
+        let size = buf.len();
+        let buf = buf.as_slice().as_ptr() as *const std::ffi::c_void;
+
+        // make a buffer postgres controls
+        let mem = pg_sys::palloc0(size);
+        // memcpy into the buffer
+        std::ptr::copy(buf, mem, size);
+
+        // make a list
+        pg_sys::lappend(std::ptr::null_mut() as *mut pg_sys::List, mem)
+    }
+
     /// Turn this into an actual foreign data wrapper object.
     /// Postgres creates fdws by having a function return a special
     /// fdw_routine object, which is what this datum is.
@@ -560,7 +612,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
             ExplainForeignModify: None,
             ExplainDirectModify: None,
             AnalyzeForeignTable: None,
-            ImportForeignSchema: None,
+            ImportForeignSchema: Some(Self::import_foreign_schema),
             IsForeignScanParallelSafe: None,
 
             EstimateDSMForeignScan: None,
