@@ -13,3 +13,8 @@ crate-type = ["cdylib"]
 [dependencies]
 pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
 pg-extend = { version = "*", path = "../../pg-extend" }
+
+[dev-dependencies]
+cargo = "0.33"
+users = "0.8.1"
+postgres = "0.15"
