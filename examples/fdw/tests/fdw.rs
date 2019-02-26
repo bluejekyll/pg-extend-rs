@@ -41,7 +41,13 @@ fn get_url() -> String {
 #[test]
 fn test_fdw() {
     let fdw_lib = build_fdw().expect("couldn't compile fdw");
+
+    // Make sure Postgres can access the file
+    #[cfg(not(target_os = "windows"))]
+    std::fs::set_permissions(&fdw_lib, std::os::unix::fs::PermissionsExt::from_mode(0o777)).expect("failed to set permissions");
+
     let fdw_lib_path = fdw_lib.to_str().unwrap();
+
     let conn = Connection::connect(get_url(), TlsMode::None).unwrap();
     // Function names don't need to be escaped the way "$1" would escape them.
     conn.execute(
