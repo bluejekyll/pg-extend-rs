@@ -447,6 +447,7 @@ dependencies = [
  "pg-extend 0.2.1",
  "pg-extern-attr 0.2.2",
  "postgres 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "users 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
