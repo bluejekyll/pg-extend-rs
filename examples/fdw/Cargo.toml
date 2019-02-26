@@ -18,3 +18,4 @@ pg-extend = { version = "*", path = "../../pg-extend" }
 cargo = "0.33"
 users = "0.8.1"
 postgres = "0.15"
+tempfile = "3.0"

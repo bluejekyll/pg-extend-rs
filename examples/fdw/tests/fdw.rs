@@ -1,6 +1,7 @@
 extern crate cargo;
 extern crate postgres;
 extern crate users;
+extern crate tempfile;
 
 use cargo::util::errors::CargoResult;
 use postgres::{Connection, TlsMode};
@@ -42,11 +43,10 @@ fn get_url() -> String {
 fn test_fdw() {
     let fdw_lib = build_fdw().expect("couldn't compile fdw");
 
-    // Make sure Postgres can access the file
-    #[cfg(not(target_os = "windows"))]
-    std::fs::set_permissions(&fdw_lib, std::os::unix::fs::PermissionsExt::from_mode(0o777)).expect("failed to set permissions");
-
-    let fdw_lib_path = fdw_lib.to_str().unwrap();
+    let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
+    let tmplib = tmpdir.path().with_file_name(fdw_lib.file_name().unwrap());
+    std::fs::copy(fdw_lib, &tmplib).expect("failed to copy file");
+    let fdw_lib_path = tmplib.to_str().unwrap();
 
     let conn = Connection::connect(get_url(), TlsMode::None).unwrap();
     // Function names don't need to be escaped the way "$1" would escape them.
