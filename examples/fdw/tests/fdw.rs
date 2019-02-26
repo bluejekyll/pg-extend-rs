@@ -48,7 +48,7 @@ fn test_fdw() {
     std::fs::copy(fdw_lib, &tmplib).expect("failed to copy file");
     let fdw_lib_path = tmplib.to_str().unwrap();
 
-    let conn = Connection::connect(get_url(), TlsMode::None).unwrap();
+    let conn = Connection::connect(get_url(), TlsMode::None).expect("failed to connect");
     // Function names don't need to be escaped the way "$1" would escape them.
     conn.execute(
         format!("DROP FUNCTION IF EXISTS {}() CASCADE", SQL_FUNC_NAME).as_str(),

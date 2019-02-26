@@ -46,12 +46,13 @@ matrix:
            RUST_BACKTRACE=full
            POSTGRES_TEST_DB=travis_ci_test
            POSTGRES_USER=postgres
+           POSTGRES_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_TEST_DB}
       before_install:
         - rustup component add rustfmt
-        # - brew upgrade postgresql || brew install postgres
-        # - $(pg_config --bindir)/pg_ctl -D travis_ci_test initdb
-        # - $(pg_config --bindir)/pg_ctl -D travis_ci_test start
-        # - $(pg_config --bindir)/psql -c 'create database travis_ci_test;' -U postgres
+        - $(pg_config --bindir)/pg_ctl -D travis_ci_test initdb
+        - $(pg_config --bindir)/pg_ctl -D travis_ci_test start
+        - $(pg_config --bindir)/createuser -s postgres
+        - $(pg_config --bindir)/psql -c 'create database travis_ci_test;' -U postgres
       script: 
         - cargo test
         # - cargo test -- --ignored
