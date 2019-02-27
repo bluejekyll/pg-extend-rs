@@ -25,18 +25,14 @@ matrix:
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
            POSTGRES_TEST_DB=travis_ci_test
-           POSTGRES_USER=postgres
+           POSTGRES_URL=postgres://postgres@localhost:5432/${POSTGRES_TEST_DB}
       before_install:
         - rustup component add rustfmt
-        - psql -c 'create database travis_ci_test;' -U ${POSTGRES_USER}
+        - psql -c 'create database travis_ci_test;' -U postgres
       script:
         - cargo test
-        # FIXME: integrattion tests work locally, postgres hits an error:
-        #    could not access file \"/home/travis/build/bluejekyll/pg-extend-rs/integration-tests/target/integration-libs/debug/libadding.so\": Permission denied
-        #     explicitly setting this to 755 on both the lib and the containing directory, doesn't resolve the issue
-        #- cargo test -- --ignored
 
-        # macos
+    # macos
     - os: osx
       rust: stable
       env: NAME=macOS
@@ -45,8 +41,7 @@ matrix:
            RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
            POSTGRES_TEST_DB=travis_ci_test
-           POSTGRES_USER=postgres
-           POSTGRES_URL=postgres://${POSTGRES_USER}@localhost:5432/${POSTGRES_TEST_DB}
+           POSTGRES_URL=postgres://postgres@localhost:5432/${POSTGRES_TEST_DB}
       before_install:
         - rustup component add rustfmt
         - $(pg_config --bindir)/pg_ctl -D travis_ci_test initdb

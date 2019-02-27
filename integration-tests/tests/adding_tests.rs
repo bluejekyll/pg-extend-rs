@@ -2,7 +2,6 @@ extern crate integration_tests;
 
 use integration_tests::*;
 
-#[ignore]
 #[test]
 fn test_add_one() {
     test_in_db("adding", |conn| {
@@ -16,7 +15,6 @@ fn test_add_one() {
     });
 }
 
-#[ignore]
 #[test]
 fn test_add_small_one() {
     test_in_db("adding", |conn| {
@@ -32,7 +30,6 @@ fn test_add_small_one() {
     });
 }
 
-#[ignore]
 #[test]
 fn test_add_big_one() {
     test_in_db("adding", |conn| {
@@ -48,7 +45,6 @@ fn test_add_big_one() {
     });
 }
 
-#[ignore]
 #[test]
 fn test_add_together() {
     test_in_db("adding", |conn| {
