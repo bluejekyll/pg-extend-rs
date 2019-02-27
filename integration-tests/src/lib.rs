@@ -89,16 +89,14 @@ pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
 }
 
 
-pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, create_statements: bool, test: F, ) {
+pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, test: F, ) {
     let (lib_path, bin_path) = build_lib(lib_name).expect("failed to build extension");
 
 
     let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
     let lib_path = copy_to_tempdir(tmpdir.path(), lib_path);
 
-    if create_statements {
-        run_create_stmts(&bin_path, &lib_path);
-    }
+    run_create_stmts(&bin_path, &lib_path);
 
     let panic_result = panic::catch_unwind(|| {
         let conn = db_conn();

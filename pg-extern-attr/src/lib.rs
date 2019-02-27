@@ -142,7 +142,33 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
         }
     );
 
+    let create_sql_name =
+        syn::Ident::new(&format!("{}_pg_create_stmt", struct_name), Span::call_site());
+
+    let sql_stmt = format!(
+        "
+CREATE OR REPLACE FUNCTION {0}() RETURNS fdw_handler AS '{{library_path}}', '{1}' LANGUAGE C STRICT;
+CREATE FOREIGN DATA WRAPPER {0} handler {0} NO VALIDATOR;
+",
+        struct_name, func_name,
+    );
+
+    // declare a function that can be used to output a create statement for the externed function
+    //   all create statements will be put into a common module for access
+    let create_sql_def = quote!(
+        #[allow(unused)]
+        pub fn #create_sql_name(library_path: &str) -> String {
+            use pg_extend::pg_type::PgTypeInfo;
+
+            format!(
+                #sql_stmt,
+                library_path = library_path
+            )
+        }
+    );
+
     decl.extend(info_fn);
+    decl.extend(create_sql_def);
     decl.extend(fdw_fn);
 
     decl
