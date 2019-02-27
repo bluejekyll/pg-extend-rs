@@ -672,7 +672,9 @@ dependencies = [
 name = "integration-tests"
 version = "0.0.0"
 dependencies = [
+ "cargo 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "postgres 0.15.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
