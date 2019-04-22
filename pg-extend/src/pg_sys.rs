@@ -13,7 +13,7 @@
 #![allow(clippy::approx_constant)]
 #![allow(clippy::cast_lossless)]
 #![allow(clippy::const_static_lifetime)]
-#![allow(clippy::new_without_default_derive)]
+#![allow(clippy::new_without_default)]
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::trivially_copy_pass_by_ref)]
