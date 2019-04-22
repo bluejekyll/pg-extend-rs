@@ -94,10 +94,13 @@ fn get_postgres_feature_version(pg_include: String) -> &'static str {
         e.get_kind() == clang::EntityKind::StringLiteral
     }).expect("couldn't find string literal for major version");
 
-    match string_literal.get_display_name().unwrap().as_str() {
-        "\"9\"" => "postgres-9",
-        "\"10\"" => "postgres-10",
-        "\"11\"" => "postgres-11",
+    let version = string_literal.get_display_name().unwrap().replace("\"", "");
+    let version = version.split(".").collect::<Vec<_>>();
+
+    match &version[..] {
+        ["9", _] => "postgres-9",
+        ["10"] => "postgres-10",
+        ["11"] => "postgres-11",
         val => panic!("unknown postgres version {:?}", val),
     }
 }
