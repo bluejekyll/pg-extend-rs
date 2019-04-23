@@ -16,6 +16,7 @@ const FALSE_I8: i8 = 0;
 const TRUE_CH: char = 1 as char;
 const FALSE_CH: char = 0 as char;
 
+/// A macro to convert booleans between Postgres and Rust
 #[macro_export]
 macro_rules! pgbool {
     ($x:expr) => ($crate::pg_bool::Bool::from($x).into())
