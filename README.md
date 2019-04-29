@@ -1,3 +1,5 @@
+[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=bluejekyll/pg-extend-rs)](https://dependabot.com)
+
 # Rust based postgres extension
 
 The main things provided by this crate are some macros that help with writing Postgres extensions in Rust.
