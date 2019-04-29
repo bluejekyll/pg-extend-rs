@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](LICENSE-APACHE)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=bluejekyll/pg-extend-rs)](https://dependabot.com)
-[![](http://meritbadge.herokuapp.com/pg-extend-rs)](https://crates.io/crates/pg-extend-rs)
+[![](http://meritbadge.herokuapp.com/pg-extend)](https://crates.io/crates/pg-extend)
 
 # Rust based postgres extension
 
