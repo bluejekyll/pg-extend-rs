@@ -6,6 +6,7 @@ members = [
     "pg-extend", 
     "pg-extern-attr", 
     "examples/adding", 
+    "examples/nullable",
     "examples/panicking",
     "examples/fdw",
     "examples/fdw-rw",
