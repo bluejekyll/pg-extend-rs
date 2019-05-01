@@ -167,6 +167,28 @@ impl From<CString> for PgDatum {
     }
 }
 
+impl<T> TryFromPgDatum for Option<T> where T: TryFromPgDatum {
+    fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
+        if datum.is_null() {
+            return Ok(None);
+        }
+
+        // Value is not NULL: Call try_from() of type T without Optional<>
+        let result: Result<T, &'static str> = TryFromPgDatum::try_from(datum);
+
+        Ok(Some(result?))
+    }
+}
+
+impl<T> From<Option<T>> for PgDatum where PgDatum: From<T> {
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(value) => PgDatum::from(value),
+            None => PgDatum(None)
+        }
+    }
+}
+
 impl From<()> for PgDatum {
     fn from(_value: ()) -> Self {
         PgDatum(None)

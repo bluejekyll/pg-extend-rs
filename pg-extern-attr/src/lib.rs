@@ -18,6 +18,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
+use syn::Type;
 
 fn create_function_params(num_args: usize) -> TokenStream {
     let mut tokens = TokenStream::new();
@@ -33,10 +34,10 @@ fn create_function_params(num_args: usize) -> TokenStream {
     tokens
 }
 
-fn extract_arg_data(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
-    let mut get_args_stream = TokenStream::new();
+fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<&Type> {
+    let mut types = Vec::new();
 
-    for (i, arg) in inputs.iter().enumerate() {
+    for arg in inputs.iter() {
         let arg_type: &syn::Type = match *arg {
             syn::FnArg::SelfRef(_) | syn::FnArg::SelfValue(_) => {
                 panic!("self functions not supported")
@@ -44,8 +45,18 @@ fn extract_arg_data(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
             syn::FnArg::Inferred(_) => panic!("inferred function parameters not supported"),
             syn::FnArg::Captured(ref captured) => &captured.ty,
             syn::FnArg::Ignored(ref ty) => ty,
-        };
 
+        };
+        types.push(arg_type);
+    }
+
+    types
+}
+
+fn extract_arg_data(arg_types: &[&Type]) -> TokenStream {
+    let mut get_args_stream = TokenStream::new();
+
+    for (i, arg_type) in arg_types.iter().enumerate() {
         let arg_name = Ident::new(&format!("arg_{}", i), Span::call_site());
         let arg_error = format!("unsupported function argument type for {}", arg_name);
 
@@ -84,19 +95,10 @@ fn sql_param_list(num_args: usize) -> String {
     tokens
 }
 
-fn sql_param_types(inputs: &Punctuated<syn::FnArg, Comma>) -> TokenStream {
+fn sql_param_types(arg_types: &[&Type]) -> TokenStream {
     let mut tokens = TokenStream::new();
 
-    for (i, arg) in inputs.iter().enumerate() {
-        let arg_type: &syn::Type = match *arg {
-            syn::FnArg::SelfRef(_) | syn::FnArg::SelfValue(_) => {
-                panic!("self functions not supported")
-            }
-            syn::FnArg::Inferred(_) => panic!("inferred function parameters not supported"),
-            syn::FnArg::Captured(ref captured) => &captured.ty,
-            syn::FnArg::Ignored(ref ty) => ty,
-        };
-
+    for (i, arg_type) in arg_types.iter().enumerate() {
         let sql_name = Ident::new(&format!("sql_{}", i), Span::call_site());
 
         let sql_param = quote!(
@@ -116,6 +118,28 @@ fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
     };
 
     quote!(pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
+}
+
+/// Returns Rust code to figure out if the function takes optional arguments. Functions with
+/// non-optional arguments will be declared with the STRICT option. PostgreSQL behavior:
+///
+/// > If this parameter is specified, the function is not executed when there are null arguments;
+/// > instead a null result is assumed automatically.
+fn sql_function_options(arg_types: &[&Type]) -> TokenStream {
+    if arg_types.is_empty() {
+        return quote!("",);
+    }
+
+    quote!(
+        {
+            let optional_args = [ #( <#arg_types>::is_option() ),* ];
+            if optional_args.iter().all(|&x| x) { "" }
+            else if !optional_args.iter().any(|&x| x) { " STRICT" }
+            else {
+                panic!("Cannot mix Option and non-Option arguments.");
+            }
+        },
+    )
 }
 
 fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
@@ -218,8 +242,9 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     // join the function information in
     function.extend(func_info);
 
-    let get_args_from_datums = extract_arg_data(inputs);
-    let func_params = create_function_params(inputs.len());
+    let arg_types = get_arg_types(inputs);
+    let get_args_from_datums = extract_arg_data(&arg_types);
+    let func_params = create_function_params(arg_types.len());
 
     // wrap the original function in a pg_wrapper function
     let func_wrapper = quote!(
@@ -273,13 +298,14 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let create_sql_name =
         syn::Ident::new(&format!("{}_pg_create_stmt", func_name), Span::call_site());
 
-    let sql_params = sql_param_list(inputs.len());
-    let sql_param_types = sql_param_types(inputs);
+    let sql_params = sql_param_list(arg_types.len());
+    let sql_param_types = sql_param_types(&arg_types);
+    let sql_options = sql_function_options(&arg_types);
     let sql_return = sql_return_type(output);
 
     // ret and library_path are replacements at runtime
     let sql_stmt = format!(
-        "CREATE or REPLACE FUNCTION {}({}) {{ret}} AS '{{library_path}}', '{}' LANGUAGE C STRICT;",
+        "CREATE or REPLACE FUNCTION {}({}) {{ret}} AS '{{library_path}}', '{}' LANGUAGE C{{opts}};",
         func_name, sql_params, func_wrapper_name,
     );
 
@@ -294,6 +320,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                 #sql_stmt,
                 #sql_param_types
                 ret = #sql_return,
+                opts = #sql_options
                 library_path = library_path
             )
         }

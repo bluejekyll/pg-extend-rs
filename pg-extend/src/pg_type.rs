@@ -177,6 +177,8 @@ impl PgType {
 pub trait PgTypeInfo {
     /// return the Postgres type
     fn pg_type() -> PgType;
+    /// for distinguishing optional and non-optional arguments
+    fn is_option() -> bool { false }
 }
 
 impl PgTypeInfo for i16 {
@@ -213,4 +215,12 @@ impl PgTypeInfo for () {
     fn pg_type() -> PgType {
         PgType::Null
     }
+}
+
+impl<T> PgTypeInfo for Option<T> where T: PgTypeInfo {
+    fn pg_type() -> PgType {
+        T::pg_type()
+    }
+
+    fn is_option() -> bool { true }
 }
