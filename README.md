@@ -25,7 +25,7 @@ The objective (not all these are yet implemented):
 
 First install Postgres. The build should be able to find the directory for the postgres server headers, it uses the `pg_config --includedir-server` to attempt to find the directory. If it is unsuccessful then this environment variable is required:
 
-`PG_INCLUDE_PATH=/path/to/postgres]/include/server # e.g. /usr/local/pgsql/include/server`
+`PG_INCLUDE_PATH=[/path/to/postgres]/include/server # e.g. /usr/local/pgsql/include/server`
 
 This environment variable is also required for the dynamic libraries to compile:
 

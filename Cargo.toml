@@ -10,5 +10,6 @@ members = [
     "examples/panicking",
     "examples/fdw",
     "examples/fdw-rw",
+    "examples/strings",
     "integration-tests",
 ]
