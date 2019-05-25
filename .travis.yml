@@ -22,7 +22,6 @@ matrix:
       env: NAME=stable
            PG_BASE_INCLUDE=$(pg_config --includedir)
            PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/10/server
-           RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
            POSTGRES_TEST_DB=travis_ci_test
            POSTGRES_URL=postgres://postgres@localhost:5432/${POSTGRES_TEST_DB}
@@ -38,7 +37,6 @@ matrix:
       env: NAME=macOS
            PG_BASE_INCLUDE=$(pg_config --includedir)
            PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/server
-           RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
            POSTGRES_TEST_DB=travis_ci_test
            POSTGRES_URL=postgres://postgres@localhost:5432/${POSTGRES_TEST_DB}
@@ -57,7 +55,6 @@ matrix:
       env: NAME=clippy
            PG_BASE_INCLUDE=$(pg_config --includedir)
            PG_INCLUDE_PATH=${PG_BASE_INCLUDE}/10/server
-           RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
            RUST_BACKTRACE=full
       before_install:
         - rustup component add clippy
