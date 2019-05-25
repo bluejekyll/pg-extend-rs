@@ -1,5 +1,5 @@
-extern crate postgres;
 extern crate cargo;
+extern crate postgres;
 extern crate tempfile;
 
 use std::env;
@@ -7,20 +7,86 @@ use std::panic::{self, UnwindSafe};
 use std::path::{Path, PathBuf};
 use std::process;
 
-use postgres::Connection;
-use cargo::util::errors::CargoResult;
 use cargo::core::compiler::{Compilation, CompileMode};
+use cargo::util::errors::CargoResult;
+use postgres::Connection;
 
-pub fn build_lib(name: &str) -> CargoResult<(PathBuf, PathBuf)> {
+pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
+    println!("building library: {}", name);
     let cfg = cargo::util::config::Config::default()?;
-    let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build).expect("failed to get compile options");
-    opts.features = vec!("pg_allocator".into());
-    opts.spec = cargo::ops::Packages::Packages(vec!(name.into()));
 
-    let path = cargo::util::important_paths::find_root_manifest_for_wd(cfg.cwd().parent().unwrap())?;
+    let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
+        .expect("failed to get compile options");
+    opts.features = vec!["pg_allocator".into()];
+    opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
+    opts.build_config.extra_rustc_args.extend(vec![
+        "-C".to_string(),
+        "link-arg=-undefineddynamic_lookup".to_string(),
+    ]);
+    opts.filter = cargo::ops::CompileFilter::new(
+        true,
+        vec![],
+        false,
+        vec![],
+        false,
+        vec![],
+        false,
+        vec![],
+        false,
+        false,
+    );
+
+    let search_path = if cfg.cwd().ends_with("integration-tests") {
+        // if it's in the integration-tests, this is being run in the pg-extend-rs project
+        cfg.cwd().parent().unwrap()
+    } else {
+        // otherwise we're in a different project
+        cfg.cwd()
+    };
+
+    let path = cargo::util::important_paths::find_root_manifest_for_wd(search_path)?;
+    println!("Cargo.toml: {}", path.display());
     let ws = cargo::core::Workspace::new(&path, &cfg)?;
     let result = cargo::ops::compile(&ws, &opts)?;
-    Ok((get_lib_path(&result, name), get_stmt_bin_path(&result)))
+    Ok(get_lib_path(&result, name))
+}
+
+pub fn build_bin(name: &str) -> CargoResult<PathBuf> {
+    println!("building binary: {}", name);
+    let cfg = cargo::util::config::Config::default()?;
+
+    let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
+        .expect("failed to get compile options");
+    opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
+    opts.build_config.extra_rustc_args.extend(vec![
+        "-C".to_string(),
+        "link-arg=-undefineddynamic_lookup".to_string(),
+    ]);
+    opts.filter = cargo::ops::CompileFilter::new(
+        false,
+        vec![],
+        true,
+        vec![],
+        false,
+        vec![],
+        false,
+        vec![],
+        false,
+        false,
+    );
+
+    let search_path = if cfg.cwd().ends_with("integration-tests") {
+        // if it's in the integration-tests, this is being run in the pg-extend-rs project
+        cfg.cwd().parent().unwrap()
+    } else {
+        // otherwise we're in a different project
+        cfg.cwd()
+    };
+
+    let path = cargo::util::important_paths::find_root_manifest_for_wd(search_path)?;
+    let ws = cargo::core::Workspace::new(&path, &cfg)?;
+    let result = cargo::ops::compile(&ws, &opts)?;
+    Ok(get_stmt_bin_path(&result))
 }
 
 fn get_lib_path(result: &Compilation, name: &str) -> PathBuf {
@@ -42,11 +108,9 @@ fn get_stmt_bin_path(result: &Compilation) -> PathBuf {
     result.binaries[0].clone()
 }
 
-
 pub fn db_conn() -> Connection {
     if let Ok(url) = env::var("POSTGRES_URL") {
-        return Connection::connect(url, postgres::TlsMode::None)
-            .expect("could not connect")
+        return Connection::connect(url, postgres::TlsMode::None).expect("could not connect");
     }
 
     let db_name = env::var("POSTGRES_TEST_DB").expect(
@@ -63,7 +127,7 @@ pub fn db_conn() -> Connection {
 }
 
 pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
-    eprintln!("Bin path: {:?}",bin_path);
+    eprintln!("Bin path: {:?}", bin_path);
     let sql = process::Command::new(bin_path)
         .arg(lib_path)
         .output()
@@ -84,15 +148,31 @@ pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
 
 pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
     let tmplib = path.with_file_name(lib_path.file_name().unwrap());
-    std::fs::copy(lib_path, &tmplib).expect("failed to copy file");
+    assert!(
+        path.exists(),
+        format!("path does not exist: {}", path.display())
+    );
+
+    std::fs::copy(&lib_path, &tmplib)
+        .map_err(|e| {
+            format!(
+                "failed to copy file from {} to {}: {}",
+                lib_path.display(),
+                tmplib.display(),
+                e
+            )
+        })
+        .unwrap();
     tmplib
 }
 
+pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, test: F) {
+    println!("test_in_db: {}", lib_name);
+    let bin_path = build_bin(lib_name).expect("failed to build stmt binary");
+    assert!(bin_path.exists());
 
-pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, test: F, ) {
-    let (lib_path, bin_path) = build_lib(lib_name).expect("failed to build extension");
-
-
+    let lib_path = build_lib(lib_name).expect("failed to build extension");
+    assert!(lib_path.exists());
     let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
     let lib_path = copy_to_tempdir(tmpdir.path(), lib_path);
 

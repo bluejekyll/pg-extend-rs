@@ -2,10 +2,12 @@ extern crate integration_tests;
 
 use integration_tests::*;
 
+#[ignore]
 #[test]
 fn test_fdw() {
     test_in_db("fdw", |conn| {
-        conn.batch_execute("
+        conn.batch_execute(
+            "
 CREATE SERVER df FOREIGN DATA WRAPPER defaultfdw;
 
 DROP SCHEMA IF EXISTS fdw_test_schema CASCADE;
@@ -15,8 +17,9 @@ CREATE SCHEMA fdw_test_schema;
 IMPORT FOREIGN SCHEMA test
   FROM SERVER df
   INTO fdw_test_schema;
-"
-        ) .expect("Failed to import foreign schema");
+",
+        )
+        .expect("Failed to import foreign schema");
 
         let rows = conn
             .query("SELECT * FROM fdw_test_schema.mytable", &[])

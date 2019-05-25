@@ -14,10 +14,10 @@ pub mod pg_alloc;
 pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
-pub mod pg_sys;
-pub mod pg_type;
 #[cfg(not(feature = "postgres-9"))]
 pub mod pg_fdw;
+pub mod pg_sys;
+pub mod pg_type;
 
 /// A macro for marking a library compatible with the Postgres extension framework.
 ///
@@ -63,12 +63,14 @@ macro_rules! pg_magic {
 /// Returns the slice of Datums, and a parallel slice which specifies if the Datum passed in is (SQL) NULL
 pub fn get_args<'a>(
     func_call_info: &'a pg_sys::FunctionCallInfoData,
-) -> (impl 'a + Iterator<Item=&pg_sys::Datum>, impl 'a + Iterator<Item=pg_bool::Bool>) {
+) -> (
+    impl 'a + Iterator<Item = &pg_sys::Datum>,
+    impl 'a + Iterator<Item = pg_bool::Bool>,
+) {
     let num_args = func_call_info.nargs as usize;
 
     let args = func_call_info.arg[..num_args].iter();
-    let args_null =
-        func_call_info.argnull[..num_args]
+    let args_null = func_call_info.argnull[..num_args]
         .iter()
         .map(|b| pg_bool::Bool::from(*b));
 
@@ -77,27 +79,33 @@ pub fn get_args<'a>(
 
 /// This will replace the current panic_handler
 pub fn register_panic_handler() {
-    use std::panic;
     use crate::pg_error;
+    use std::panic;
 
     // set (and replace the existing) panic handler, this will tell Postgres that the call failed
     //   a level of Fatal will force the DB connection to be killed.
     panic::set_hook(Box::new(|info| {
         let level = pg_error::Level::Fatal;
 
-        pg_error::log(level, file!(), line!(), module_path!(), format!("panic in Rust extension: {}", info));
+        pg_error::log(
+            level,
+            file!(),
+            line!(),
+            module_path!(),
+            format!("panic in Rust extension: {}", info),
+        );
     }));
 }
 
 /// auto generate function to output a SQL create statement for the function
-/// 
+///
 /// Until concat_ident! stabilizes, this requires the name to passed with the appended sctring
 ///   `_pg_create_stmt`
-/// 
+///
 /// # Example
-/// 
+///
 /// create a binary for the library, like bin.rs, and this will generate a `main()` function in it
-/// 
+///
 /// ```text
 /// extern crate pg_extend;
 ///
@@ -130,7 +138,7 @@ macro_rules! pg_create_stmt_bin {
             const LIB_NAME: &str = env!("CARGO_PKG_NAME");
 
             let lib_path = env::args().nth(1).unwrap_or_else(|| format!("target/release/lib{}.{}", LIB_NAME, DYLIB_EXT));
-            
+
             $( println!("{}", lib::$func(&lib_path)); )*
         }
 

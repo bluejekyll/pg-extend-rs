@@ -128,10 +128,7 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
     let mut decl = item.clone().into_token_stream();
 
     let struct_name = &typ.ident;
-    let func_name = syn::Ident::new(
-        &format!("fdw_{}", struct_name),
-        Span::call_site(),
-        );
+    let func_name = syn::Ident::new(&format!("fdw_{}", struct_name), Span::call_site());
 
     let info_fn = get_info_fn(&func_name);
 
@@ -142,8 +139,10 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
         }
     );
 
-    let create_sql_name =
-        syn::Ident::new(&format!("{}_pg_create_stmt", struct_name), Span::call_site());
+    let create_sql_name = syn::Ident::new(
+        &format!("{}_pg_create_stmt", struct_name),
+        Span::call_site(),
+    );
 
     let sql_stmt = format!(
         "
@@ -175,10 +174,7 @@ CREATE FOREIGN DATA WRAPPER {0} handler {0} NO VALIDATOR;
 }
 
 fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
-        let func_info_name = syn::Ident::new(
-        &format!("pg_finfo_{}", func_name),
-        Span::call_site(),
-    );
+    let func_info_name = syn::Ident::new(&format!("pg_finfo_{}", func_name), Span::call_site());
 
     // create the postgres info
     quote!(
@@ -188,7 +184,6 @@ fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
             &my_finfo
         }
     )
-
 }
 
 fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
@@ -227,6 +222,8 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         pub extern "C" fn #func_wrapper_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
             use std::panic;
 
+            pg_extend::pg_alloc::set_in_pgcontext(true);
+
             let func_info: &mut pg_extend::pg_sys::FunctionCallInfoData = unsafe {
                 func_call_info
                     .as_mut()
@@ -248,6 +245,8 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                 // arbitrary Rust code could panic, so this is guarded
                 pg_extend::pg_datum::PgDatum::from(result)
             });
+
+            pg_extend::pg_alloc::set_in_pgcontext(false);
 
             // see if we caught a panic
             match panic_result {
