@@ -27,11 +27,14 @@ First install Postgres. Once installed, this environment variable is required:
 
 `PG_INCLUDE_PATH=[/path/to/postgres]/include/server # e.g. /usr/local/pgsql/include/server`
 
-This environment variable is also required for the dynamic libraries to compile:
+For the dynamic library to compile, your project should also have `.cargo/config` file with content:
 
-`RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"`
+```toml
+[build]
+rustflags = "-C link-arg=-undefineddynamic_lookup"
+```
 
-This informs the linker that some of the symbols for postgres won't be available until runtime on the dynamic library load.
+This informs the linker that some of the symbols for Postgres won't be available until runtime on the dynamic library load.
 
 ## Examples
 

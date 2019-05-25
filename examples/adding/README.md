@@ -2,10 +2,10 @@
 
 An example of adding 1 to another number and returning the result.
 
-To build, get Rust, then (the RUSTFLAGS is required to build the library):
+To build, get Rust, then:
 
 ```console
-$> RUSTFLAGS="-C link-arg=-undefineddynamic_lookup" cargo build --release
+$> cargo build --release
 ...
 ```
 
