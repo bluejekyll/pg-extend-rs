@@ -17,7 +17,12 @@ pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
-    opts.features = vec!["pg_allocator".into()];
+    
+    #[cfg(feature = "pg_allocator")]
+    {
+        opts.features = vec!["pg_allocator".into()];
+    }
+
     opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
     opts.build_config.extra_rustc_args.extend(vec!["-C".to_string(), "link-arg=-undefineddynamic_lookup".to_string()]);
     opts.filter = cargo::ops::CompileFilter::new(true, vec![], false, vec![], false, vec![], false, vec![], false, false);

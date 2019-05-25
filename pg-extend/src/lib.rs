@@ -9,6 +9,7 @@
 
 #![warn(missing_docs)]
 
+#[cfg(feature = "pg_allocator")]
 pub mod pg_alloc;
 #[macro_use]
 pub mod pg_bool;

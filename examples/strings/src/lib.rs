@@ -11,7 +11,7 @@ extern crate pg_extend;
 use pg_extern_attr::pg_extern;
 use pg_extend::pg_magic;
 
-/// This tells Postges this library is a Postgres extension
+// This tells Postges this library is a Postgres extension
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
 /// The pg_extern attribute wraps the function in the proper functions syntax for C extensions

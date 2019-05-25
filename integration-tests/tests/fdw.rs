@@ -3,7 +3,6 @@ extern crate integration_tests;
 use integration_tests::*;
 
 #[test]
-#[ignore]
 fn test_fdw() {
     test_in_db("fdw", |conn| {
         conn.batch_execute(
