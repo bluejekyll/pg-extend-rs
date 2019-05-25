@@ -123,7 +123,6 @@ impl TryFromPgDatum for String {
 
 impl From<String> for PgDatum {
     fn from(value: String) -> Self {
-        use std::ffi::CString;
         use std::os::raw::c_char;
 
         let cstr = CString::new(value).expect("This shouldn't fail");

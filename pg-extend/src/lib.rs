@@ -79,7 +79,6 @@ pub fn get_args<'a>(
 /// This will replace the current panic_handler
 pub fn register_panic_handler() {
     use std::panic;
-    use crate::pg_error;
 
     // set (and replace the existing) panic handler, this will tell Postgres that the call failed
     //   a level of Fatal will force the DB connection to be killed.

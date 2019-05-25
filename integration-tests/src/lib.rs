@@ -7,13 +7,13 @@ use std::panic::{self, UnwindSafe};
 use std::path::{Path, PathBuf};
 use std::process;
 
-use cargo::core::compiler::{BuildConfig, Compilation, CompileMode};
+use cargo::core::compiler::{Compilation, CompileMode};
 use cargo::util::errors::CargoResult;
 use postgres::Connection;
 
 pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     println!("building library: {}", name);
-    let mut cfg = cargo::util::config::Config::default()?;
+    let cfg = cargo::util::config::Config::default()?;
     
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
@@ -44,7 +44,7 @@ pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
 
 pub fn build_bin(name: &str) -> CargoResult<PathBuf> {
     println!("building binary: {}", name);
-    let mut cfg = cargo::util::config::Config::default()?;
+    let cfg = cargo::util::config::Config::default()?;
     
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
