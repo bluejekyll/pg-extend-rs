@@ -23,6 +23,9 @@ postgres-9 = []
 postgres-10 = []
 postgres-11 = []
 
+# pg_allocator is currently unstable
+pg_allocator = []
+
 [dependencies]
 
 [build-dependencies]

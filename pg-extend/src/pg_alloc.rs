@@ -24,6 +24,6 @@ unsafe impl GlobalAlloc for PgAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        pg_sys::pfree(ptr as *mut c_void)
+        pg_sys::pfree(dbg!(ptr) as *mut c_void)
     }
 }

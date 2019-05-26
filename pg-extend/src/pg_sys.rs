@@ -20,5 +20,6 @@
 #![allow(clippy::transmute_ptr_to_ptr)]
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::useless_transmute)]
+#![allow(improper_ctypes)]
 
 include!(concat!(env!("OUT_DIR"), "/postgres.rs"));

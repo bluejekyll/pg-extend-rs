@@ -284,6 +284,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
     unsafe fn tupdesc_attrs(tupledesc: &pg_sys::tupleDesc) -> &[pg_sys::Form_pg_attribute] {
         #[cfg(feature = "postgres-11")]
+        #[allow(clippy::cast_ptr_alignment)]
         let attrs = (*tupledesc).attrs.as_ptr() as *const _;
         #[cfg(not(feature = "postgres-11"))]
         let attrs = (*tupledesc).attrs;

@@ -16,8 +16,10 @@ pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
 /// The pg_extern attribute wraps the function in the proper functions syntax for C extensions
 #[pg_extern]
-fn panicking(value: i32) -> i32 {
-    panic!("forced panic in Rust example, value: {}", value);
+fn concat_rs(mut a: String, b: String) -> String {
+    a.push_str(&b);
+
+    a
 }
 
 #[cfg(test)]
@@ -25,8 +27,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[should_panic]
-    fn test_panicking() {
-        assert_eq!(panicking(1), 2);
+    fn test_concat_rs() {
+        assert_eq!(&concat_rs("a".to_string(), "b".to_string()), "ab");
     }
 }

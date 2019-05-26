@@ -32,7 +32,7 @@ fn get_cache() -> &'static RwLock<HashMap<String, String>> {
     }
 }
 
-/// This tells Postges this library is a Postgres extension
+// This tells Postges this library is a Postgres extension
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
 #[pg_foreignwrapper]
