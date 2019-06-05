@@ -6,8 +6,6 @@
 /// though, that is converting from NetworkByte order, and this is all NativeByte order?
 #[derive(Clone, Copy)]
 pub enum PgType {
-    /// NULL, not a PG type, this may be removed in the future
-    Null,
     /// abstime 	AbsoluteTime 	utils/nabstime.h
     AbsoluteTime,
     /// bigint (int8) 	int64 	postgres.h
@@ -78,6 +76,8 @@ pub enum PgType {
     TimeInterval,
     /// varchar 	VarChar* 	postgres.h
     VarChar,
+    /// void
+    Void,
     /// xid 	TransactionId 	postgres.h
     TransactionId,
 }
@@ -91,9 +91,6 @@ impl PgType {
     /// Return the string representation of this type
     pub fn as_str(self) -> &'static str {
         match self {
-            // NULL
-            // TODO: this might be incorrect, and may go away
-            PgType::Null => "NULL",
             // abstime 	AbsoluteTime 	utils/nabstime.h
             PgType::AbsoluteTime => "abstime",
             // bigint (int8) 	int64 	postgres.h
@@ -159,6 +156,8 @@ impl PgType {
             PgType::TimeInterval => "tinterval",
             // varchar 	VarChar* 	postgres.h
             PgType::VarChar => "varchar",
+            // void
+            PgType::Void => "void",
             // xid 	TransactionId 	postgres.h
             PgType::TransactionId => "xid",
         }
@@ -166,10 +165,7 @@ impl PgType {
 
     /// Return the String to be used for the RETURNS statement in SQL
     pub fn return_stmt(self) -> String {
-        match self {
-            PgType::Null => String::new(),
-            ty => format!("RETURNS {}", ty.as_str()),
-        }
+        format!("RETURNS {}", self.as_str())
     }
 }
 
@@ -213,7 +209,7 @@ impl PgTypeInfo for std::ffi::CString {
 
 impl PgTypeInfo for () {
     fn pg_type() -> PgType {
-        PgType::Null
+        PgType::Void
     }
 }
 
