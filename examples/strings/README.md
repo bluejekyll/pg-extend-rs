@@ -1,15 +1,13 @@
-# Rust based postgres extension
+# Example Postgres extension using strings
 
-A strings example.
-
-To build, get Rust, then (the RUSTFLAGS is required to build the library):
+To build, get Rust, then:
 
 ```console
-$> RUSTFLAGS="-C link-arg=-undefineddynamic_lookup" cargo build --release
+$> cargo build --release
 ...
 ```
 
-then load into postgres
+then load into Postgres:
 
 ```console
 $> psql $CONN_STR

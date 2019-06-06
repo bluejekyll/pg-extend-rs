@@ -1,6 +1,6 @@
-# Rust based postgres extension
+# Example Postgres extension using panic
 
-A panicking example.
+Demonstrating how panic is caught by pg-extend-rs.
 
 To build, get Rust, then:
 
@@ -9,7 +9,7 @@ $> cargo build --release
 ...
 ```
 
-then load into postgres
+then load into Postgres:
 
 ```console
 $> psql $CONN_STR

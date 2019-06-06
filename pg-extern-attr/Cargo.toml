@@ -5,7 +5,7 @@ authors = ["Benjamin Fry <benjaminfry@me.com>"]
 edition = "2018"
 
 description = """
-A attribute proc-macro for deriving postgres extension function information, akin to PG_FUNCTION_INFO_V1 in Postgres
+A attribute proc-macro for deriving Postgres extension function information, akin to PG_FUNCTION_INFO_V1 in Postgres
 """
 
 documentation = "https://docs.rs/pg-extern-attr"

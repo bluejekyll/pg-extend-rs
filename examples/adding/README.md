@@ -1,4 +1,4 @@
-# Rust based postgres extension
+# Example Postgres extension using integers
 
 An example of adding 1 to another number and returning the result.
 
@@ -9,7 +9,7 @@ $> cargo build --release
 ...
 ```
 
-then load into postgres
+then load into Postgres:
 
 ```console
 $> psql $CONN_STR

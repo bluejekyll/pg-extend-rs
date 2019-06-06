@@ -26,7 +26,7 @@ pub mod pg_fdw;
 #[macro_export]
 macro_rules! pg_magic {
     (version: $vers:expr) => {
-        // Set the global allocator to use postgres' allocator, which guarantees all memory freed at
+        // Set the global allocator to use Postgres' allocator, which guarantees all memory freed at
         //   transaction close.
         #[global_allocator]
         #[cfg(feature = "pg_allocator")]
