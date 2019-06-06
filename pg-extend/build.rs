@@ -111,6 +111,6 @@ fn get_postgres_feature_version(pg_include: String) -> &'static str {
         ["9", _] => "postgres-9",
         ["10"] => "postgres-10",
         ["11"] => "postgres-11",
-        val => panic!("unknown postgres version {:?}", val),
+        val => panic!("unknown Postgres version {:?}", val),
     }
 }

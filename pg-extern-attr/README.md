@@ -1,3 +1,3 @@
 # pg-extern-attr
 
-Attribute macro for externalizing postgres extension functions from Rust.
+Attribute macro for externalizing Postgres extension functions from Rust.

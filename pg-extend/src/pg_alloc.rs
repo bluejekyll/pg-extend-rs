@@ -19,7 +19,7 @@ pub struct PgAllocator;
 
 unsafe impl GlobalAlloc for PgAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // TODO: is there anything we need ot do in terms of layout, etc?
+        // TODO: is there anything we need to do in terms of layout, etc?
         pg_sys::palloc(layout.size()) as *mut u8
     }
 

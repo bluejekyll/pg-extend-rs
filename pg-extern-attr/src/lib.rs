@@ -199,12 +199,12 @@ CREATE FOREIGN DATA WRAPPER {0} handler {0} NO VALIDATOR;
 }
 
 fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
-        let func_info_name = syn::Ident::new(
+    let func_info_name = syn::Ident::new(
         &format!("pg_finfo_{}", func_name),
         Span::call_site(),
     );
 
-    // create the postgres info
+    // create the Postgres info
     quote!(
         #[no_mangle]
         pub extern "C" fn #func_info_name () -> &'static pg_extend::pg_sys::Pg_finfo_record {

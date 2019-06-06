@@ -1,4 +1,4 @@
-# Rust based postgres extension
+# Example Postgres extension using NULLs
 
 An example of the NULLIF() conditional expression implemented in Rust, taking
 advntage of optional (NULL or Option<>) arguments and return type.
@@ -10,7 +10,7 @@ $> cargo build --release
 ...
 ```
 
-then load into postgres
+then load into Postgres:
 
 ```console
 $> psql $CONN_STR

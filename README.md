@@ -5,7 +5,7 @@
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=bluejekyll/pg-extend-rs)](https://dependabot.com)
 [![](http://meritbadge.herokuapp.com/pg-extend)](https://crates.io/crates/pg-extend)
 
-# Rust based postgres extension
+# Rust based Postgres extension
 
 The main things provided by this crate are some macros that help with writing Postgres extensions in Rust.
 
@@ -23,7 +23,7 @@ The objective (not all these are yet implemented):
 
 ## Building
 
-First install Postgres. The build should be able to find the directory for the postgres server headers, it uses the `pg_config --includedir-server` to attempt to find the directory. If it is unsuccessful then this environment variable is required:
+First install Postgres. The build should be able to find the directory for the Postgres server headers, it uses the `pg_config --includedir-server` to attempt to find the directory. If it is unsuccessful then this environment variable is required:
 
 `PG_INCLUDE_PATH=[/path/to/postgres]/include/server # e.g. /usr/local/pgsql/include/server`
 
@@ -38,12 +38,11 @@ This informs the linker that some of the symbols for Postgres won't be available
 
 ## Running the integration tests
 
-Standard tests can be run with the normal `cargo test`, but the integration tests are a little more involved. They require a connection to an actual Postgres DB. These instructions were performed on macOS. Create a DB in postgres to be use. In this example a DB was created in the `/usr/local/var/posgres` path, with the name `postgres`.
+Standard tests can be run with the normal `cargo test`, but the integration tests are a little more involved. They require a connection to an actual Postgres DB. These instructions were performed on macOS. Create a DB in Postgres to be use. In this example a DB was created in the `/usr/local/var/posgres` path, with the name `postgres`.
 
 To run the test must know the DB name to use, the DB must be running, and then the tests can be run:
 
 ```shell
-export RUSTFLAGS="-C link-arg=-undefineddynamic_lookup"
 export POSTGRES_TEST_DB=postgres
 
 pg_ctl -D /usr/local/var/postgres start
@@ -57,4 +56,4 @@ cargo test
 
 ## Features
 
-To use the postgres allocator, the feature `pg_allocator` must be defined and enabled in the implementing crate.
+To use the Postgres allocator, the feature `pg_allocator` must be defined and enabled in the implementing crate.
