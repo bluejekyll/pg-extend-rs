@@ -19,6 +19,7 @@ pub mod pg_sys;
 pub mod pg_type;
 #[cfg(not(feature = "postgres-9"))]
 pub mod pg_fdw;
+pub mod log;
 
 /// A macro for marking a library compatible with the Postgres extension framework.
 ///
@@ -83,9 +84,7 @@ pub fn register_panic_handler() {
     // set (and replace the existing) panic handler, this will tell Postgres that the call failed
     //   a level of Fatal will force the DB connection to be killed.
     panic::set_hook(Box::new(|info| {
-        let level = pg_error::Level::Fatal;
-
-        pg_error::log(level, file!(), line!(), module_path!(), format!("panic in Rust extension: {}", info));
+        fatal!("panic in Rust extension: {}", info);
     }));
 }
 

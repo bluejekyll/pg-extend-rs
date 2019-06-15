@@ -1,0 +1,19 @@
+[package]
+name = "logging"
+version = "0.1.0"
+authors = ["Marti Raudsepp <marti@juffo.org"]
+edition = "2018"
+
+[features]
+pg_allocator = []
+
+[lib]
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "logging-stmt"
+path = "src/bin.rs"
+
+[dependencies]
+pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
+pg-extend = { version = "*", path = "../../pg-extend" }
