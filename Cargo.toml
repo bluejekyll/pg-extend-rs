@@ -11,5 +11,6 @@ members = [
     "examples/fdw",
     "examples/fdw-rw",
     "examples/strings",
+    "examples/logging",
     "integration-tests",
 ]

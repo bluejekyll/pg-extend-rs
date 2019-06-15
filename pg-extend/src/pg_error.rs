@@ -6,10 +6,14 @@
 // copied, modified, or distributed except according to those terms.
 
 //! Error reporting support for Postgres.
+//! This module is deprecated, use the logging macros in the [`pg_extend::log` module].
+//!
+//! [`pg_extend::log` module]: ../log/index.html
+#![allow(deprecated)]
 
-use std::os::raw::{c_int, c_char};
+use std::os::raw::{c_char, c_int};
 
-use crate::{pg_sys, pg_bool};
+use crate::{pg_bool, pg_sys};
 
 const ERR_DOMAIN: &[u8] = b"RUST\0";
 
@@ -20,6 +24,7 @@ const ERR_DOMAIN: &[u8] = b"RUST\0";
 /// Some of these levels effect the status of the connection and transaction in Postgres. Specifically, >= Error will cause
 ///   the connection and transaction to fail and be reset.
 #[derive(Clone, Copy)]
+#[deprecated = "use pg_extend::log::Level"]
 pub enum Level {
     /// Debugging messages, in categories of 5 decreasing detail.
     Debug5 = pg_sys::DEBUG5 as isize,
@@ -60,6 +65,7 @@ impl From<Level> for c_int {
 // TODO: offer a similar interface to that postgres for multi-log lines?
 // TODO: is there a better interface for CStr?
 /// log an error to Postgres
+#[deprecated = "use the new logging macros in pg_extend::log"]
 pub fn log<T1, T2, T3>(level: Level, file: T1, line: u32, func_name: T2, msg: T3) 
 where 
     T1: Into<Vec<u8>>,

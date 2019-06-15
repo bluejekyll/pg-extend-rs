@@ -10,7 +10,7 @@ extern crate pg_extern_attr;
 
 use pg_extend::pg_datum::TryFromPgDatum;
 use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
-use pg_extend::{pg_datum, pg_error, pg_magic, pg_type};
+use pg_extend::{pg_datum, pg_magic, pg_type, info};
 use pg_extern_attr::pg_foreignwrapper;
 
 use std::collections::HashMap;
@@ -115,13 +115,7 @@ CREATE FOREIGN TABLE {schema}.mytable (
                 Some(Box::new(MyRow { key, value }))
             }
             _ => {
-                pg_error::log(
-                    pg_error::Level::Info,
-                    file!(),
-                    line!(),
-                    module_path!(),
-                    format!("Missing key ({:?}) or value ({:?})", key, value),
-                );
+                info!("Missing key ({:?}) or value ({:?})", key, value);
                 None
             }
         }
@@ -145,13 +139,7 @@ CREATE FOREIGN TABLE {schema}.mytable (
                 }
             }
             _ => {
-                pg_error::log(
-                    pg_error::Level::Info,
-                    file!(),
-                    line!(),
-                    module_path!(),
-                    "Delete called without Key".to_string(),
-                );
+                info!("Delete called without Key");
                 None
             }
         }

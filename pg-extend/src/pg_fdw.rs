@@ -5,7 +5,7 @@
 //! https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
 //! For use with `#[pg_foreignwrapper]` from pg-extend-attr
 
-use crate::{pg_datum, pg_error, pg_sys, pg_type};
+use crate::{pg_datum, pg_sys, pg_type, error, warn};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::{CStr,CString};
@@ -56,13 +56,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// were present in the UPDATE statement.
     /// Returns the updated row, or None if no update occured.
     fn update(&self, _new_row: &Tuple, _indices: &Tuple) -> Option<Box<ForeignRow>> {
-        pg_error::log(
-            pg_error::Level::Error,
-            file!(),
-            line!(),
-            module_path!(),
-            "Table does not support update",
-        );
+        error!("Table does not support update");
         None
     }
 
@@ -70,13 +64,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// names to values). Returns the inserted row, or None if no insert
     /// occurred.
     fn insert(&self, _new_row: &Tuple) -> Option<Box<ForeignRow>> {
-        pg_error::log(
-            pg_error::Level::Error,
-            file!(),
-            line!(),
-            module_path!(),
-            "Table does not support insert",
-        );
+        error!("Table does not support insert");
         None
     }
 
@@ -84,13 +72,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// specified by index_columns.
     /// Returns the deleted row, or None if no row was deleted.
     fn delete(&self, _indices: &Tuple) -> Option<Box<ForeignRow>> {
-        pg_error::log(
-            pg_error::Level::Error,
-            file!(),
-            line!(),
-            module_path!(),
-            "Table does not support delete",
-        );
+        error!("Table does not support delete");
         None
     }
 }
@@ -211,13 +193,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         match cname.to_str() {
             Ok(s) => s.into(),
             Err(err) => {
-                pg_error::log(
-                    pg_error::Level::Error,
-                    file!(),
-                    line!(),
-                    module_path!(),
-                    format!("Unicode error {}", err)
-                );
+                error!("Unicode error {}", err);
                 String::new()
             }
         }
@@ -231,13 +207,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         match cname.to_str() {
             Ok(name) => name.into(),
             Err(err) => {
-                pg_error::log(
-                    pg_error::Level::Error,
-                    file!(),
-                    line!(),
-                    module_path!(),
-                    format!("Unicode error {}", err)
-                );
+                error!("Unicode error {}", err);
                 String::new()
             }
         }
@@ -319,7 +289,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
                 let result = Self::get_field(&(**pattr), &(*row));
                 match result {
                     Err(err) => {
-                        pg_error::log(pg_error::Level::Warning, file!(), line!(), "get_field", err);
+                        warn!("{}", err);
                         continue;
                     }
                     Ok(None) => continue,
@@ -395,13 +365,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
                 let (attr, idx) = match attrs.get(&key) {
                     Some((attr, idx)) => (*(*attr), idx),
                     None => {
-                        pg_error::log(
-                            pg_error::Level::Error,
-                            file!(),
-                            line!(),
-                            module_path!(),
-                            format!("Table has no such key {}", key)
-                        );
+                        error!("Table has no such key {}", key);
                         continue
                     }
                 };
