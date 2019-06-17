@@ -88,11 +88,13 @@ where
     let errlevel: c_int = c_int::from(level);
 
     // log the data:
-    unsafe {
-        let res = pg_sys::errstart(errlevel, file, line, func_name, ERR_DOMAIN.as_ptr() as *const c_char);
-        if pg_bool::Bool::from(res).into() {
-            let msg_result = pg_sys::errmsg(msg);
-            pg_sys::errfinish(msg_result);
+    crate::guard_c(|| {
+        unsafe {
+            let res = pg_sys::errstart(errlevel, file, line, func_name, ERR_DOMAIN.as_ptr() as *const c_char);
+            if pg_bool::Bool::from(res).into() {
+                let msg_result = pg_sys::errmsg(msg);
+                pg_sys::errfinish(msg_result);
+            }
         }
     }
 }
