@@ -4,6 +4,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](LICENSE-APACHE)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=bluejekyll/pg-extend-rs)](https://dependabot.com)
 [![](http://meritbadge.herokuapp.com/pg-extend)](https://crates.io/crates/pg-extend)
+[![Discord](https://img.shields.io/discord/589988605322199149.svg)](https://discordapp.com/channels/589988605322199149/)
 
 # Rust based Postgres extension
 
@@ -57,3 +58,7 @@ cargo test
 ## Features
 
 To use the Postgres allocator, the feature `pg_allocator` must be defined and enabled in the implementing crate.
+
+## Community
+
+For live discussions beyond this repository, please see this [Discord](https://discordapp.com/channels/589988605322199149/).
