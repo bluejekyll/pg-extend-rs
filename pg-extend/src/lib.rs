@@ -6,8 +6,11 @@
 // copied, modified, or distributed except according to those terms.
 
 //! Postgres extension library for Rust.
-
 #![warn(missing_docs)]
+
+use std::os::raw::c_int;
+use std::sync::atomic::compiler_fence;
+use std::sync::atomic::Ordering;
 
 #[cfg(feature = "pg_allocator")]
 pub mod pg_alloc;
@@ -16,9 +19,9 @@ pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
 
-#[cfg(not(feature = "postgres-9"))]
-pub mod pg_fdw;
 pub mod log;
+pub mod pg_fdw;
+
 pub mod pg_sys;
 pub mod pg_type;
 /// A macro for marking a library compatible with the Postgres extension framework.
@@ -79,6 +82,13 @@ pub fn get_args<'a>(
     (args, args_null)
 }
 
+struct PanicContext {
+    jump_value: c_int,
+    stack: *mut c_int,
+}
+
+unsafe impl Send for PanicContext {}
+
 /// This will replace the current panic_handler
 pub fn register_panic_handler() {
     use std::panic;
@@ -86,8 +96,51 @@ pub fn register_panic_handler() {
     // set (and replace the existing) panic handler, this will tell Postgres that the call failed
     //   a level of Fatal will force the DB connection to be killed.
     panic::set_hook(Box::new(|info| {
-        fatal!("panic in Rust extension: {}", info);
+        // downcast info, check if it's the value we need.
+        //   this must check if the panic was due to a longjmp
+        //   the fence is to make sure the longjmp is not reodered.
+        compiler_fence(Ordering::SeqCst);
+        if let Some(panic_context) = info.payload().downcast_ref::<PanicContext>() {
+            // WARNING: do not set this level above Notice (ERROR, FATAL, PANIC), as it will calse
+            //   the following longjmp to execute.
+            notice!("continuing longjmp: {}", info);
+
+            // the panic came from a pg longjmp... so unwrap it and rethrow
+            unsafe {
+                pg_sys::longjmp(panic_context.stack, panic_context.jump_value);
+            }
+        } else {
+            // error level will cause a longjmp in Postgres
+            error!("panic in Rust extension: {}", info);
+        }
+
+        unreachable!("all above statements should have cause a longjmp to Postgres");
     }));
+}
+
+/// Provides a barrier between Rust and Postgres' usage of the C set/longjmp
+///
+/// In the case of a longjmp being caught, this will convert that to a panic. For this to work
+///   properly, there must be a Rust panic handler (see crate::register_panic_handler).PanicContext
+///   If the `pg_exend` attribute macro is used for exposing Rust functions to Postgres, then
+///   this is already handled.
+///
+/// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
+#[inline(never)]
+pub(crate) unsafe fn guard_c<R, F: FnOnce() -> R>(f: F) -> R {
+    // setup the check protection
+    let jumped = pg_sys::setjmp(pg_sys::PG_exception_stack as *mut std::os::raw::c_int);
+    if jumped != 0 {
+        // THE C Paniced!, handling control to Rust Panic handler
+        panic!(PanicContext {
+            jump_value: jumped,
+            stack: pg_sys::PG_exception_stack as *mut std::os::raw::c_int
+        });
+    }
+
+    // enforce that the setjmp is not reordered, though that's probably unlikely...
+    compiler_fence(Ordering::SeqCst);
+    f()
 }
 
 /// auto generate function to output a SQL create statement for the function
@@ -140,25 +193,4 @@ macro_rules! pg_create_stmt_bin {
             panic!("disable `pg_allocator` feature to print create STMTs")
         }
     };
-}
-
-/// Provides a barrier between Rust and Postgres' usage of the C set/longjmp
-///
-/// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
-pub(crate) unsafe fn guard_c<R, F: FnOnce() -> R>(f: F) -> R {
-    use std::sync::atomic::compiler_fence;
-    use std::sync::atomic::Ordering;
-
-    unsafe {
-        // setup the check protection
-        let jumped = pg_sys::setjmp(pg_sys::PG_exception_stack as *mut std::os::raw::c_int);
-        if jumped != 0 {
-            // THE C Paniced!, handling control to Rust Panic handler
-            // FIXME: pass necessary info so that the panic_handler can longjmp properly...
-            panic!("Postgres threw an exception");
-        }
-
-
-        f()
-    }
 }

@@ -2,6 +2,7 @@ extern crate integration_tests;
 
 use integration_tests::*;
 
+#[ignore]
 #[test]
 fn test_fdw() {
     test_in_db("fdw", |conn| {

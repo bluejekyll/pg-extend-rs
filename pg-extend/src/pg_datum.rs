@@ -128,7 +128,9 @@ impl From<String> for PgDatum {
         let cstr = CString::new(value).expect("This shouldn't fail");
         let ptr: *const c_char = cstr.as_ptr();
 
-        let text = unsafe { pg_sys::cstring_to_text(ptr) };
+        let text = unsafe { 
+            crate::guard_c(|| pg_sys::cstring_to_text(ptr))
+        };
 
         PgDatum(Some(text as Datum))
     }
@@ -160,7 +162,9 @@ impl From<CString> for PgDatum {
         use std::os::raw::c_char;
 
         let ptr: *const c_char = value.as_ptr();
-        let text = unsafe { pg_sys::cstring_to_text(ptr) };
+        let text = unsafe { 
+            crate::guard_c(|| pg_sys::cstring_to_text(ptr))
+        };
 
         PgDatum(Some(text as Datum))
     }
