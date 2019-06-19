@@ -122,7 +122,7 @@ pub fn register_panic_handler() {
 ///
 /// In the case of a longjmp being caught, this will convert that to a panic. For this to work
 ///   properly, there must be a Rust panic handler (see crate::register_panic_handler).PanicContext
-///   If the `pg_exend` attribute macro is used for exposing Rust functions to Postgres, then
+///   If the `pg_exern` attribute macro is used for exposing Rust functions to Postgres, then
 ///   this is already handled.
 ///
 /// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
