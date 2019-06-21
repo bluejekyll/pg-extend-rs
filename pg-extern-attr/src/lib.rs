@@ -293,13 +293,15 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                     compiler_fence(Ordering::SeqCst);
                     let level = pg_extend::pg_error::Level::Error;
 
-                    if let Some(msg) = info.payload().downcast_ref::<&'static str>() {
+                    if let Some(msg) = err.downcast_ref::<&'static str>() {
                         error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
-                    } else let Some(msg) = info.payload().downcast_ref::<String>() {
-                        error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
-                    } else {
-                        error!("panic executing Rust '{}'", stringify!(#func_name));
                     }
+
+                    if let Some(msg) = err.downcast_ref::<String>() {
+                        error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
+                    }
+
+                    error!("panic executing Rust '{}'", stringify!(#func_name));
 
                     unreachable!("log should have longjmped above, this is a bug in pg-extend-rs");
                 }

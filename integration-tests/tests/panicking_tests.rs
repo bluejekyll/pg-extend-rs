@@ -9,3 +9,12 @@ fn test_panicking() {
         assert!(result.is_err());
     });
 }
+
+#[test]
+fn test_longjmping() {
+    test_in_db("panicking", |conn| {
+        let result = conn.query("SELECT longjmping(3)", &[]);
+        assert!(result.is_err());
+    });
+}
+
