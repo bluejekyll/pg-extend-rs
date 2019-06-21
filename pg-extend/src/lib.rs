@@ -8,6 +8,7 @@
 //! Postgres extension library for Rust.
 #![warn(missing_docs)]
 
+use std::mem;
 use std::os::raw::c_int;
 use std::sync::atomic::compiler_fence;
 use std::sync::atomic::Ordering;
@@ -82,12 +83,10 @@ pub fn get_args<'a>(
     (args, args_null)
 }
 
-struct PanicContext {
+/// Information for a longjmp
+struct JumpContext {
     jump_value: c_int,
-    stack: *mut c_int,
 }
-
-unsafe impl Send for PanicContext {}
 
 /// This will replace the current panic_handler
 pub fn register_panic_handler() {
@@ -100,14 +99,17 @@ pub fn register_panic_handler() {
         //   this must check if the panic was due to a longjmp
         //   the fence is to make sure the longjmp is not reodered.
         compiler_fence(Ordering::SeqCst);
-        if let Some(panic_context) = info.payload().downcast_ref::<PanicContext>() {
+        if let Some(panic_context) = info.payload().downcast_ref::<JumpContext>() {
             // WARNING: do not set this level above Notice (ERROR, FATAL, PANIC), as it will calse
             //   the following longjmp to execute.
             notice!("continuing longjmp: {}", info);
 
             // the panic came from a pg longjmp... so unwrap it and rethrow
             unsafe {
-                pg_sys::longjmp(panic_context.stack, panic_context.jump_value);
+                pg_sys::siglongjmp(
+                    pg_sys::PG_exception_stack as *mut _,
+                    panic_context.jump_value,
+                );
             }
         } else {
             // error level will cause a longjmp in Postgres
@@ -127,20 +129,35 @@ pub fn register_panic_handler() {
 ///
 /// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
 #[inline(never)]
-pub(crate) unsafe fn guard_c<R, F: FnOnce() -> R>(f: F) -> R {
+pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     // setup the check protection
-    let jumped = pg_sys::setjmp(pg_sys::PG_exception_stack as *mut std::os::raw::c_int);
+    let original_exception_stack: pg_sys::sigjmp_buf = *pg_sys::PG_exception_stack;
+    let mut local_exception_stack: pg_sys::sigjmp_buf = mem::uninitialized();
+    let jumped = pg_sys::sigsetjmp(
+        &mut local_exception_stack as *mut pg_sys::sigjmp_buf as *mut _,
+        1,
+    );
+    // now that we have the local_exception_stack, we set that for any PG longjmps...
+
     if jumped != 0 {
-        // THE C Paniced!, handling control to Rust Panic handler
-        panic!(PanicContext {
-            jump_value: jumped,
-            stack: pg_sys::PG_exception_stack as *mut std::os::raw::c_int
-        });
+        *pg_sys::PG_exception_stack = original_exception_stack;
+
+        // The C Panicked!, handling control to Rust Panic handler
+        compiler_fence(Ordering::SeqCst);
+        panic!(JumpContext { jump_value: jumped });
     }
+
+    // replace the exception stack with ours to jump to the above point
+    *pg_sys::PG_exception_stack = local_exception_stack;
 
     // enforce that the setjmp is not reordered, though that's probably unlikely...
     compiler_fence(Ordering::SeqCst);
-    f()
+    let result = f();
+
+    compiler_fence(Ordering::SeqCst);
+    *pg_sys::PG_exception_stack = original_exception_stack;
+
+    result
 }
 
 /// auto generate function to output a SQL create statement for the function

@@ -219,7 +219,9 @@ pub fn __private_api_log(
 
     // Rust has no "function name" macro, for now we use module path instead.
     // See: https://github.com/rust-lang/rfcs/issues/1743
-    let do_log = unsafe { pg_sys::errstart(errlevel, file, line, module_path, LOG_DOMAIN) };
+    let do_log = unsafe {
+        crate::guard_pg(|| pg_sys::errstart(errlevel, file, line, module_path, LOG_DOMAIN))
+    };
 
     // If errstart returned false, the message won't be seen by anyone; logging will be skipped
     if pgbool!(do_log) {
@@ -231,8 +233,10 @@ pub fn __private_api_log(
         ).expect("this should not fail: msg");
 
         unsafe {
-            let msg_result = pg_sys::errmsg(c_msg.as_ptr());
-            pg_sys::errfinish(msg_result);
+            crate::guard_pg(|| {
+                let msg_result = pg_sys::errmsg(c_msg.as_ptr());
+                pg_sys::errfinish(msg_result);
+            })
         }
     }
 }

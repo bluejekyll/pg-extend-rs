@@ -18,9 +18,9 @@ use crate::{pg_bool, pg_sys};
 const ERR_DOMAIN: &[u8] = b"RUST\0";
 
 /// Postgres logging Levels
-/// 
+///
 /// # Note
-/// 
+///
 /// Some of these levels effect the status of the connection and transaction in Postgres. Specifically, >= Error will cause
 ///   the connection and transaction to fail and be reset.
 #[derive(Clone, Copy)]
@@ -66,8 +66,8 @@ impl From<Level> for c_int {
 // TODO: is there a better interface for CStr?
 /// log an error to Postgres
 #[deprecated = "use the new logging macros in pg_extend::log"]
-pub fn log<T1, T2, T3>(level: Level, file: T1, line: u32, func_name: T2, msg: T3) 
-where 
+pub fn log<T1, T2, T3>(level: Level, file: T1, line: u32, func_name: T2, msg: T3)
+where
     T1: Into<Vec<u8>>,
     T2: Into<Vec<u8>>,
     T3: Into<Vec<u8>>,
@@ -89,8 +89,14 @@ where
 
     // log the data:
     unsafe {
-        crate::guard_c(|| {
-            let res = pg_sys::errstart(errlevel, file, line, func_name, ERR_DOMAIN.as_ptr() as *const c_char);
+        crate::guard_pg(|| {
+            let res = pg_sys::errstart(
+                errlevel,
+                file,
+                line,
+                func_name,
+                ERR_DOMAIN.as_ptr() as *const c_char,
+            );
             if pg_bool::Bool::from(res).into() {
                 let msg_result = pg_sys::errmsg(msg);
                 pg_sys::errfinish(msg_result);
