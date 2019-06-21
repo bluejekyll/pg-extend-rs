@@ -283,6 +283,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                 Err(err) => {
                     use std::sync::atomic::compiler_fence;
                     use std::sync::atomic::Ordering;
+                    use pg_extend::error;
 
                     // ensure the return value is null
                     func_info.isnull = pg_extend::pg_bool::Bool::from(true).into();
@@ -291,13 +292,14 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                     //   A postgres logging error of Error will do this for us.
                     compiler_fence(Ordering::SeqCst);
                     let level = pg_extend::pg_error::Level::Error;
-                    pg_extend::pg_error::log(
-                        level,
-                        file!(),
-                        line!(),
-                        module_path!(),
-                        format!("panic executing Rust function: {}", stringify!(#func_name)),
-                    );
+
+                    if let Some(msg) = info.payload().downcast_ref::<&'static str>() {
+                        error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
+                    } else let Some(msg) = info.payload().downcast_ref::<String>() {
+                        error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
+                    } else {
+                        error!("panic executing Rust '{}'", stringify!(#func_name));
+                    }
 
                     unreachable!("log should have longjmped above, this is a bug in pg-extend-rs");
                 }
