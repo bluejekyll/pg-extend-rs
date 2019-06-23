@@ -143,12 +143,14 @@ impl TryFromPgDatum for CString {
             let text_val = datum as *const pg_sys::text;
 
             unsafe {
-                let val: *mut c_char = pg_sys::text_to_cstring(text_val);
-                let cstr = CStr::from_ptr(val).to_owned();
+                crate::guard_pg(|| {
+                    let val: *mut c_char = pg_sys::text_to_cstring(text_val);
+                    let cstr = CStr::from_ptr(val).to_owned();
 
-                pg_sys::pfree(val as *mut _);
+                    pg_sys::pfree(val as *mut _);
 
-                Ok(cstr)
+                    Ok(cstr)
+                })
             }
         } else {
             Err("datum was NULL")
