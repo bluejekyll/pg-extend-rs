@@ -213,6 +213,8 @@ pub fn __private_api_log(
     level: Level,
     &(module_path, file, line): &(*const c_char, *const c_char, u32),
 ) {
+    use std::sync::atomic::{compiler_fence, Ordering};
+
     let errlevel: c_int = c_int::from(level);
     let line = line as c_int;
     const LOG_DOMAIN: *const c_char = "RUST\0" as *const str as *const c_char;
@@ -234,9 +236,10 @@ pub fn __private_api_log(
 
         unsafe {
             crate::guard_pg(|| {
+                compiler_fence(Ordering::SeqCst);
                 let msg_result = pg_sys::errmsg(c_msg.as_ptr());
                 pg_sys::errfinish(msg_result);
-            })
+            });
         }
     }
 }

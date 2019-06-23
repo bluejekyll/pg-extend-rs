@@ -22,13 +22,13 @@ fn panicking(value: i32) -> i32 {
 }
 
 /// Tests a longjmp
-/// 
+///
 /// Don't actually do this, it's a test for Postgres' usage of longjmp
 #[pg_extern]
 fn longjmping(value: i32) -> i32 {
     use pg_extend::error;
 
-    error!("Errors longjmp: {}", value);
+    error!("this error will longjmp: {}", value);
 
     unreachable!("IF YOU'RE SEEING THIS, LONGJMP FAILED");
 }
