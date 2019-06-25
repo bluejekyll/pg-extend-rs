@@ -28,10 +28,11 @@
 
 include!(concat!(env!("OUT_DIR"), "/postgres.rs"));
 
+#[cfg(target_os = "linux")]
 use std::os::raw::c_int;
 
 #[cfg(target_os = "linux")]
-#[inline]
-pub unsafe extern "C" fn sigsetjmp(env: *mut sigjmp_buf, savemask: c_int) -> c_int {
-    __sigsetjmp(env as *mut _, savemask)
+extern "C" {
+    #[link_name = "__sigsetjmp"]
+    pub fn sigsetjmp(env: *mut sigjmp_buf, savemask: c_int) -> c_int;
 }
