@@ -291,8 +291,6 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                     // The Rust code paniced, we need to recover to Postgres via a longjump
                     //   A postgres logging error of Error will do this for us.
                     compiler_fence(Ordering::SeqCst);
-                    let level = pg_extend::pg_error::Level::Error;
-
                     if let Some(msg) = err.downcast_ref::<&'static str>() {
                         error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
                     }
