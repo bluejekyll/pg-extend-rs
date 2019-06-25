@@ -14,18 +14,28 @@ use postgres::Connection;
 pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     println!("building library: {}", name);
     let cfg = cargo::util::config::Config::default()?;
-    
+
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
-    
+
     #[cfg(feature = "pg_allocator")]
     {
         opts.features = vec!["pg_allocator".into()];
     }
 
     opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
-    opts.build_config.extra_rustc_args.extend(vec!["-C".to_string(), "link-arg=-undefineddynamic_lookup".to_string()]);
-    opts.filter = cargo::ops::CompileFilter::new(true, vec![], false, vec![], false, vec![], false, vec![], false, false);
+    opts.filter = cargo::ops::CompileFilter::from_raw_arguments(
+        true,
+        vec![],
+        false,
+        vec![],
+        false,
+        vec![],
+        false,
+        vec![],
+        false,
+        false,
+    );
 
     let search_path = if cfg.cwd().ends_with("integration-tests") {
         // if it's in the integration-tests, this is being run in the pg-extend-rs project
@@ -45,12 +55,22 @@ pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
 pub fn build_bin(name: &str) -> CargoResult<PathBuf> {
     println!("building binary: {}", name);
     let cfg = cargo::util::config::Config::default()?;
-    
+
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
     opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
-    opts.build_config.extra_rustc_args.extend(vec!["-C".to_string(), "link-arg=-undefineddynamic_lookup".to_string()]);
-    opts.filter = cargo::ops::CompileFilter::new(false, vec![], true, vec![], false, vec![], false, vec![], false, false);
+    opts.filter = cargo::ops::CompileFilter::from_raw_arguments(
+        false,
+        vec![],
+        true,
+        vec![],
+        false,
+        vec![],
+        false,
+        vec![],
+        false,
+        false,
+    );
 
     let search_path = if cfg.cwd().ends_with("integration-tests") {
         // if it's in the integration-tests, this is being run in the pg-extend-rs project
@@ -125,10 +145,20 @@ pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
 
 pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
     let tmplib = path.with_file_name(lib_path.file_name().unwrap());
-    assert!(path.exists(), format!("path does not exist: {}", path.display()));
+    assert!(
+        path.exists(),
+        format!("path does not exist: {}", path.display())
+    );
 
     std::fs::copy(&lib_path, &tmplib)
-        .map_err(|e| format!("failed to copy file from {} to {}: {}", lib_path.display(), tmplib.display(), e))
+        .map_err(|e| {
+            format!(
+                "failed to copy file from {} to {}: {}",
+                lib_path.display(),
+                tmplib.display(),
+                e
+            )
+        })
         .unwrap();
     tmplib
 }
@@ -137,7 +167,7 @@ pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, test: F) {
     println!("test_in_db: {}", lib_name);
     let bin_path = build_bin(lib_name).expect("failed to build stmt binary");
     assert!(bin_path.exists());
-    
+
     let lib_path = build_lib(lib_name).expect("failed to build extension");
     assert!(lib_path.exists());
     let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
