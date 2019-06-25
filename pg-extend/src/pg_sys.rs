@@ -22,4 +22,17 @@
 #![allow(clippy::useless_transmute)]
 #![allow(improper_ctypes)]
 
+//! All exported C FFI symbols from Postgres
+//!
+//! For all function calls into Postgres, they should generally be wrapped in `pg_extend::guard_pg`.
+
 include!(concat!(env!("OUT_DIR"), "/postgres.rs"));
+
+#[cfg(target_os = "linux")]
+use std::os::raw::c_int;
+
+#[cfg(target_os = "linux")]
+extern "C" {
+    #[link_name = "__sigsetjmp"]
+    pub fn sigsetjmp(env: *mut sigjmp_buf, savemask: c_int) -> c_int;
+}

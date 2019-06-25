@@ -7,9 +7,9 @@
 
 //! Postgres Datum conversions for Rust types
 
-use crate::pg_sys::{self, Datum};
-use crate::pg_bool;
 
+use crate::pg_bool;
+use crate::pg_sys::{self, Datum};
 use std::ffi::{CStr, CString};
 
 /// A wrapper type for Postgres Datum's.
@@ -117,7 +117,8 @@ impl TryFromPgDatum for String {
     fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
         let cstr = CString::try_from(datum)?;
 
-        cstr.into_string().map_err(|_| "String contained non-utf8 data")
+        cstr.into_string()
+            .map_err(|_| "String contained non-utf8 data")
     }
 }
 
@@ -128,7 +129,7 @@ impl From<String> for PgDatum {
         let cstr = CString::new(value).expect("This shouldn't fail");
         let ptr: *const c_char = cstr.as_ptr();
 
-        let text = unsafe { pg_sys::cstring_to_text(ptr) };
+        let text = unsafe { crate::guard_pg(|| pg_sys::cstring_to_text(ptr)) };
 
         PgDatum(Some(text as Datum))
     }
@@ -142,12 +143,14 @@ impl TryFromPgDatum for CString {
             let text_val = datum as *const pg_sys::text;
 
             unsafe {
-                let val: *mut c_char = pg_sys::text_to_cstring(text_val);
-                let cstr = CStr::from_ptr(val).to_owned();
+                crate::guard_pg(|| {
+                    let val: *mut c_char = pg_sys::text_to_cstring(text_val);
+                    let cstr = CStr::from_ptr(val).to_owned();
 
-                pg_sys::pfree(val as *mut _);
+                    pg_sys::pfree(val as *mut _);
 
-                Ok(cstr)
+                    Ok(cstr)
+                })
             }
         } else {
             Err("datum was NULL")
@@ -160,13 +163,16 @@ impl From<CString> for PgDatum {
         use std::os::raw::c_char;
 
         let ptr: *const c_char = value.as_ptr();
-        let text = unsafe { pg_sys::cstring_to_text(ptr) };
+        let text = unsafe { crate::guard_pg(|| pg_sys::cstring_to_text(ptr)) };
 
         PgDatum(Some(text as Datum))
     }
 }
 
-impl<T> TryFromPgDatum for Option<T> where T: TryFromPgDatum {
+impl<T> TryFromPgDatum for Option<T>
+where
+    T: TryFromPgDatum,
+{
     fn try_from(datum: PgDatum) -> Result<Self, &'static str> {
         if datum.is_null() {
             return Ok(None);
@@ -179,11 +185,14 @@ impl<T> TryFromPgDatum for Option<T> where T: TryFromPgDatum {
     }
 }
 
-impl<T> From<Option<T>> for PgDatum where PgDatum: From<T> {
+impl<T> From<Option<T>> for PgDatum
+where
+    PgDatum: From<T>,
+{
     fn from(value: Option<T>) -> Self {
         match value {
             Some(value) => PgDatum::from(value),
-            None => PgDatum(None)
+            None => PgDatum(None),
         }
     }
 }

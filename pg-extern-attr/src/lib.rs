@@ -5,7 +5,7 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-#![recursion_limit = "128"]
+#![recursion_limit = "1024"]
 
 extern crate proc_macro;
 extern crate proc_macro2;
@@ -152,10 +152,7 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
     let mut decl = item.clone().into_token_stream();
 
     let struct_name = &typ.ident;
-    let func_name = syn::Ident::new(
-        &format!("fdw_{}", struct_name),
-        Span::call_site(),
-        );
+    let func_name = syn::Ident::new(&format!("fdw_{}", struct_name), Span::call_site());
 
     let info_fn = get_info_fn(&func_name);
 
@@ -166,8 +163,10 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
         }
     );
 
-    let create_sql_name =
-        syn::Ident::new(&format!("{}_pg_create_stmt", struct_name), Span::call_site());
+    let create_sql_name = syn::Ident::new(
+        &format!("{}_pg_create_stmt", struct_name),
+        Span::call_site(),
+    );
 
     let sql_stmt = format!(
         "
@@ -199,10 +198,7 @@ CREATE FOREIGN DATA WRAPPER {0} handler {0} NO VALIDATOR;
 }
 
 fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
-    let func_info_name = syn::Ident::new(
-        &format!("pg_finfo_{}", func_name),
-        Span::call_site(),
-    );
+    let func_info_name = syn::Ident::new(&format!("pg_finfo_{}", func_name), Span::call_site());
 
     // create the Postgres info
     quote!(
@@ -285,11 +281,29 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                     result.into_datum()
                 }
                 Err(err) => {
+                    use std::sync::atomic::compiler_fence;
+                    use std::sync::atomic::Ordering;
+                    use pg_extend::error;
+
                     // ensure the return value is null
                     func_info.isnull = pg_extend::pg_bool::Bool::from(true).into();
 
-                    // TODO: anything else to cean up before resuming the panic?
-                    panic::resume_unwind(err)
+                    // The Rust code paniced, we need to recover to Postgres via a longjump
+                    //   A postgres logging error of Error will do this for us.
+                    compiler_fence(Ordering::SeqCst);
+                    let level = pg_extend::pg_error::Level::Error;
+
+                    if let Some(msg) = err.downcast_ref::<&'static str>() {
+                        error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
+                    }
+
+                    if let Some(msg) = err.downcast_ref::<String>() {
+                        error!("panic executing Rust '{}': {}", stringify!(#func_name), msg);
+                    }
+
+                    error!("panic executing Rust '{}'", stringify!(#func_name));
+
+                    unreachable!("log should have longjmped above, this is a bug in pg-extend-rs");
                 }
             }
         }
