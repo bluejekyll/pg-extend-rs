@@ -1056,14 +1056,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quote_ident"
-version = "0.1.0"
-dependencies = [
- "pg-extend 0.2.1",
- "pg-extern-attr 0.2.2",
-]
-
-[[package]]
 name = "rand"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"

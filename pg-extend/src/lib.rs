@@ -129,7 +129,7 @@ pub fn register_panic_handler() {
 ///
 /// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
 #[inline(never)]
-pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
+pub unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     // setup the check protection
     let original_exception_stack: *mut pg_sys::sigjmp_buf = pg_sys::PG_exception_stack;
     let mut local_exception_stack: pg_sys::sigjmp_buf = mem::uninitialized();
