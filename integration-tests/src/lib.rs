@@ -18,11 +18,6 @@ pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
 
-    #[cfg(feature = "pg_allocator")]
-    {
-        opts.features = vec!["pg_allocator".into()];
-    }
-
     opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
     opts.filter = cargo::ops::CompileFilter::from_raw_arguments(
         true,

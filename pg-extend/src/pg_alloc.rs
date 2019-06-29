@@ -13,7 +13,7 @@ use std::ffi::c_void;
 use crate::pg_sys;
 
 /// An allocattor which uses the palloc and pfree functions available from Postgres.
-/// 
+///
 /// This is managed by Postgres and guarantees that all memory is freed after a transaction completes.
 pub struct PgAllocator;
 
