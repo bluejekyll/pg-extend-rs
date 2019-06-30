@@ -1,14 +1,13 @@
 //! A trait for implementing a foreign data wrapper.
-//! Adapted and transalated from
-//! https://github.com/slaught/dummy_fdw/blob/master/dummy_data.c
-//! and
-//! https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
+//!
+//! Adapted and transalated from https://github.com/slaught/dummy_fdw/blob/master/dummy_data.c
+//! and https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
 //! For use with `#[pg_foreignwrapper]` from pg-extend-attr
 
-use crate::{pg_datum, pg_sys, pg_type, error, warn};
+use crate::{error, pg_datum, pg_sys, pg_type, warn};
 use std::boxed::Box;
 use std::collections::HashMap;
-use std::ffi::{CStr,CString};
+use std::ffi::{CStr, CString};
 
 /// A map from column names to data types. Tuple order is not currently
 /// preserved, it may be in the future.
@@ -46,7 +45,12 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// Remote schema can be used or ignored.
     /// At present all other options passed in are ignored, in the future this
     /// method might take options for which tables to import.
-    fn schema(_server_opts: OptionMap, _server_name: String, _remote_schema: String, _local_schema: String) -> Option<Vec<String>> {
+    fn schema(
+        _server_opts: OptionMap,
+        _server_name: String,
+        _remote_schema: String,
+        _local_schema: String,
+    ) -> Option<Vec<String>> {
         None
     }
 
@@ -231,9 +235,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let attrs = unsafe { Self::tupdesc_attrs(tupledesc) };
 
         // Make sure the slot is fully populated
-        unsafe {
-            pg_sys::slot_getallattrs(slot)
-        }
+        unsafe { pg_sys::slot_getallattrs(slot) }
 
         let data: &[pg_sys::Datum] =
             unsafe { std::slice::from_raw_parts((*slot).tts_values, (*slot).tts_nvalid as usize) };
@@ -244,7 +246,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let mut t = HashMap::new();
 
         for i in 0..(attrs.len().min(data.len())) {
-            let name = Self::name_to_string(unsafe {(*attrs[i]).attname});
+            let name = Self::name_to_string(unsafe { (*attrs[i]).attname });
             let data = pg_datum::PgDatum::from_raw(data[i], isnull[i]);
             t.insert(name, data);
         }
@@ -337,7 +339,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     unsafe extern "C" fn add_foreign_update_targets(
         parsetree: *mut pg_sys::Query,
         _target_rte: *mut pg_sys::RangeTblEntry,
-        target_relation: pg_sys::Relation
+        target_relation: pg_sys::Relation,
     ) {
         // TODO real server options
         let server_opts = HashMap::new();
@@ -346,19 +348,14 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         let table_name = Self::get_table_name(&*target_relation);
 
-        if let Some(keys) = T::index_columns(
-            server_opts,
-            table_opts,
-            table_name
-        ) {
-
+        if let Some(keys) = T::index_columns(server_opts, table_opts, table_name) {
             // Build a map of column names to attributes and column index
             let attrs: HashMap<String, (&pg_sys::Form_pg_attribute, usize)> =
                 Self::tupdesc_attrs(&*(*target_relation).rd_att)
-                .iter()
-                .enumerate()
-                .map(|(idx, rel)| (Self::name_to_string((**rel).attname), (rel, idx)))
-                .collect();
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, rel)| (Self::name_to_string((**rel).attname), (rel, idx)))
+                    .collect();
 
             for key in keys {
                 // find the matching column
@@ -366,7 +363,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
                     Some((attr, idx)) => (*(*attr), idx),
                     None => {
                         error!("Table has no such key {}", key);
-                        continue
+                        continue;
                     }
                 };
 
@@ -376,27 +373,24 @@ impl<T: ForeignData> ForeignWrapper<T> {
                     (*attr).atttypid,
                     (*attr).atttypmod,
                     0 as pg_sys::Oid, // InvalidOid
-                    0
+                    0,
                 );
 
                 // TODO: error handling
 
                 let ckey = std::ffi::CString::new(key).unwrap();
                 let list = (*parsetree).targetList;
-                let list_size = if list.is_null() {
-                    0
-                } else {
-                    (*list).length
-                };
+                let list_size = if list.is_null() { 0 } else { (*list).length };
 
                 let tle = pg_sys::makeTargetEntry(
                     var as *mut pg_sys::Expr,
                     (list_size + 1) as i16,
                     pg_sys::pstrdup(ckey.as_ptr()),
-                    pgbool!(true)
+                    pgbool!(true),
                 );
 
-                (*parsetree).targetList = pg_sys::lappend((*parsetree).targetList, tle as *mut std::ffi::c_void)
+                (*parsetree).targetList =
+                    pg_sys::lappend((*parsetree).targetList, tle as *mut std::ffi::c_void)
             }
         }
     }
@@ -491,7 +485,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
     unsafe extern "C" fn import_foreign_schema(
         stmt: *mut pg_sys::ImportForeignSchemaStmt,
-        _server_oid: pg_sys::Oid
+        _server_oid: pg_sys::Oid,
     ) -> *mut pg_sys::List {
         // TODO real server opts
         let server_opts = HashMap::new();
