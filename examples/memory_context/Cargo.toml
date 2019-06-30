@@ -1,0 +1,16 @@
+[package]
+name = "memory_context"
+version = "0.1.0"
+authors = ["Benjamin Fry <benjaminfry@me.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[[bin]]
+name = "memory_context-stmt"
+path = "src/bin.rs"
+
+[dependencies]
+pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
+pg-extend = { version = "*", path = "../../pg-extend" }
