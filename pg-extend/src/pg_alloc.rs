@@ -7,7 +7,6 @@
 
 //! A Postgres Allocator
 
-use std::alloc::{GlobalAlloc, Layout};
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::mem::{self, ManuallyDrop};
@@ -40,7 +39,7 @@ impl PgAllocator {
 
 /// Types that were allocated by Postgres
 pub struct PgAllocated<'mc, T: 'mc + ?Sized> {
-    inner: ManuallyDrop<Box<T>>,
+    inner: Option<ManuallyDrop<Box<T>>>,
     allocator: &'mc PgAllocator,
     _disable_send_sync: PhantomData<NonNull<&'mc T>>,
 }
@@ -48,23 +47,24 @@ pub struct PgAllocated<'mc, T: 'mc + ?Sized> {
 impl<'mc, T: 'mc + ?Sized> PgAllocated<'mc, T> {
     pub unsafe fn from_raw(this: *mut T, allocator: &'mc PgAllocator) -> Self {
         PgAllocated {
-            inner: ManuallyDrop::new(Box::from_raw(this)),
+            inner: Some(ManuallyDrop::new(Box::from_raw(this))),
             allocator,
             _disable_send_sync: PhantomData,
         }
     }
 
-    pub unsafe fn take(self) -> *mut T {
-
-        Box::into_raw(ManuallyDrop::into_inner(self.inner))
+    pub unsafe fn take(mut self) -> *mut T {
+        Box::into_raw(ManuallyDrop::into_inner(self.inner.take().unwrap()))
     }
 }
 
 impl<'mc, T: 'mc + ?Sized> Drop for PgAllocated<'mc, T> {
     fn drop(&mut self) {
-        unsafe {
-            let ptr: *mut T = mem::transmute(self.inner.deref_mut().deref_mut());
-            self.allocator.dealloc(ptr);
+        if let Some(mut inner) = self.inner.take() {
+            unsafe {
+                let ptr: *mut T = mem::transmute(inner.deref_mut().deref_mut());
+                self.allocator.dealloc(ptr);
+            }
         }
     }
 }
