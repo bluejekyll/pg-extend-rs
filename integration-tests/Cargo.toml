@@ -21,4 +21,4 @@ pg_allocator = []
 [dependencies]
 cargo = "0.36"
 postgres = "0.15"
-tempfile = "3.0"
+tempfile = "3.1"
