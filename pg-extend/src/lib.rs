@@ -20,6 +20,7 @@ pub mod pg_datum;
 pub mod pg_error;
 
 pub mod log;
+#[cfg(fdw)]
 pub mod pg_fdw;
 
 pub mod pg_sys;
@@ -48,6 +49,8 @@ macro_rules! pg_magic {
                 float4byval: pg_sys::USE_FLOAT4_BYVAL as c_int,
                 float8byval: pg_sys::USE_FLOAT8_BYVAL as c_int,
             };
+
+            static mut FUNC_ALLOCATOR: Option<pg_extend::pg_alloc::PgAllocator> = None;
 
             // TODO: is this a good idea here?
             // register panic_handler

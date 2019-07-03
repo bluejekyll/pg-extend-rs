@@ -61,13 +61,17 @@ fn extract_arg_data(arg_types: &[&Type]) -> TokenStream {
         let arg_error = format!("unsupported function argument type for {}", arg_name);
 
         let get_arg = quote!(
-            let #arg_name: #arg_type = pg_extend::pg_datum::TryFromPgDatum::try_from(
-                pg_extend::pg_datum::PgDatum::from_raw(
-                    *args.next().expect("wrong number of args passed into get_args for args?"),
-                    args_null.next().expect("wrong number of args passed into get_args for args_null?")
-                ),
-            )
-            .expect(#arg_error);
+            let #arg_name: #arg_type = unsafe {
+                pg_extend::pg_datum::TryFromPgDatum::try_from(
+                    &memory_context,
+                    pg_extend::pg_datum::PgDatum::from_raw(
+                        &memory_context,
+                        *args.next().expect("wrong number of args passed into get_args for args?"),
+                        args_null.next().expect("wrong number of args passed into get_args for args_null?")
+                    ),
+                )
+                .expect(#arg_error)
+            };
         );
 
         get_args_stream.extend(get_arg);
@@ -159,7 +163,7 @@ fn impl_info_for_fdw(item: &syn::Item) -> TokenStream {
     let fdw_fn = quote!(
         #[no_mangle]
         pub extern "C" fn #func_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
-            pg_extend::pg_fdw::ForeignWrapper::<#struct_name>::into_datum()
+            unsafe { pg_extend::pg_fdw::ForeignWrapper::<#struct_name>::into_datum() }
         }
     );
 
@@ -247,6 +251,15 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         #[no_mangle]
         pub extern "C" fn #func_wrapper_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
             use std::panic;
+            use pg_extend::pg_alloc::PgAllocator;
+
+            // All params will be in the "current" memory context at the call-site
+            let memory_context = unsafe {
+                FUNC_ALLOCATOR = Some(PgAllocator::current_context());
+                FUNC_ALLOCATOR
+                    .as_ref()
+                    .expect("Global Memory Context not set")
+            };
 
             let func_info: &mut pg_extend::pg_sys::FunctionCallInfoData = unsafe {
                 func_call_info
@@ -278,7 +291,9 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
                     func_info.isnull = isnull.into();
 
                     // return the datum
-                    result.into_datum()
+                    unsafe {
+                        result.into_datum()
+                    }
                 }
                 Err(err) => {
                     use std::sync::atomic::compiler_fence;

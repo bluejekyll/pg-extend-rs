@@ -4,13 +4,14 @@
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
+#![cfg(fdw)]
 
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
 use pg_extend::pg_datum::TryFromPgDatum;
 use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
-use pg_extend::{pg_datum, pg_magic, pg_type, info};
+use pg_extend::{info, pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
 use std::collections::HashMap;
@@ -85,20 +86,20 @@ impl ForeignData for CacheFDW {
         _sopts: OptionMap,
         server_name: String,
         _rschema: String,
-        lschema: String
+        lschema: String,
     ) -> Option<Vec<String>> {
-        Some(vec!(format!("
+        Some(vec![format!(
+            "
 CREATE FOREIGN TABLE {schema}.mytable (
   key text,
   value text) SERVER {server}
-", server=server_name, schema=lschema)))
+",
+            server = server_name,
+            schema = lschema
+        )])
     }
 
-    fn index_columns(
-        _sopts: OptionMap,
-        _topts: OptionMap,
-        _tn: String,
-    ) -> Option<Vec<String>> {
+    fn index_columns(_sopts: OptionMap, _topts: OptionMap, _tn: String) -> Option<Vec<String>> {
         Some(vec!["key".into()])
     }
 
