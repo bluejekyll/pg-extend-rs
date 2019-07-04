@@ -50,8 +50,6 @@ macro_rules! pg_magic {
                 float8byval: pg_sys::USE_FLOAT8_BYVAL as c_int,
             };
 
-            static mut FUNC_ALLOCATOR: Option<pg_extend::pg_alloc::PgAllocator> = None;
-
             // TODO: is this a good idea here?
             // register panic_handler
             register_panic_handler();

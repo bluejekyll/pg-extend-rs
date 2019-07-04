@@ -254,12 +254,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
             use pg_extend::pg_alloc::PgAllocator;
 
             // All params will be in the "current" memory context at the call-site
-            let memory_context = unsafe {
-                FUNC_ALLOCATOR = Some(PgAllocator::current_context());
-                FUNC_ALLOCATOR
-                    .as_ref()
-                    .expect("Global Memory Context not set")
-            };
+            let memory_context = PgAllocator::current_context();
 
             let func_info: &mut pg_extend::pg_sys::FunctionCallInfoData = unsafe {
                 func_call_info

@@ -11,8 +11,8 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+use crate::pg_alloc::{PgAllocated, PgAllocator};
 use crate::pg_bool;
-use crate::pg_alloc::{PgAllocator, PgAllocated};
 use crate::pg_sys::{self, Datum};
 
 /// A wrapper type for Postgres Datum's.
@@ -27,7 +27,8 @@ impl<'mc> PgDatum<'mc> {
     pub unsafe fn from_raw<B: Into<pg_bool::Bool>>(
         memory_context: &'mc PgAllocator,
         datum: Datum,
-        is_null: B) -> PgDatum<'mc> {
+        is_null: B,
+    ) -> PgDatum<'mc> {
         let is_null: pg_bool::Bool = is_null.into();
         let datum = if is_null.into() { None } else { Some(datum) };
         PgDatum(datum, PhantomData)
@@ -56,20 +57,29 @@ impl<'mc> PgDatum<'mc> {
         }
     }
 
-
 }
 
 /// A trait that allows for conversions between Postgres Datum types and Rust types.
-/// 
+///
 /// Only Sized types, that fit in a single Datum, bool, u8 - u64 e.g. Nothing else is
 ///  safe here.
 pub trait TryFromPgDatum<'s>: Sized {
     /// Attempt a conversion to from the Postgres data type into the Rust type
-    fn try_from<'mc>(memory_context: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str> where Self: 's, 'mc: 's;
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's;
 }
 
-impl TryFromPgDatum<'static> for i16 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 'static, 'mc: 'static {
+impl<'s> TryFromPgDatum<'s> for i16 {
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         if let Some(datum) = datum.0 {
             Ok(datum as i16)
         } else {
@@ -84,8 +94,12 @@ impl From<i16> for PgDatum<'static> {
     }
 }
 
-impl TryFromPgDatum<'static> for i32 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 'static, 'mc: 'static {
+impl<'s> TryFromPgDatum<'s> for i32 {
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         if let Some(datum) = datum.0 {
             Ok(datum as i32)
         } else {
@@ -100,8 +114,12 @@ impl From<i32> for PgDatum<'static> {
     }
 }
 
-impl TryFromPgDatum<'static> for i64 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 'static, 'mc: 'static {
+impl<'s> TryFromPgDatum<'s> for i64 {
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         assert!(
             std::mem::size_of::<Datum>() >= std::mem::size_of::<i64>(),
             "Datum not large enough for i64 values"
@@ -125,8 +143,15 @@ impl From<i64> for PgDatum<'static> {
 }
 
 #[deprecated(note = "String is not Zero cost, please use the CString variant")]
-impl TryFromPgDatum<'static> for String {
-    fn try_from<'mc>(memory_context: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 'static, 'mc: 'static {
+impl<'s> TryFromPgDatum<'s> for String {
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         let cstr = CString::try_from(memory_context, datum)?;
 
         cstr.into_string()
@@ -149,8 +174,12 @@ impl From<String> for PgDatum<'static> {
 }
 
 #[deprecated(note = "String is not Zero cost, please use the CString variant")]
-impl TryFromPgDatum<'static> for CString {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 'static, 'mc: 'static {
+impl<'s> TryFromPgDatum<'s> for CString {
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         use std::os::raw::c_char;
 
         if let Some(datum) = datum.0 {
@@ -185,7 +214,14 @@ impl From<CString> for PgDatum<'static> {
 }
 
 impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
-    fn try_from<'mc>(memory_context: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 's, 'mc: 's {
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         use std::os::raw::c_char;
 
         if let Some(datum) = datum.0 {
@@ -205,7 +241,7 @@ impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
                      * case here, we'd need another routine that did, anyway.
                      */
                     let cstr = pg_sys::text_to_cstring(text_val) as *mut c_char;
-                    
+
                     // this is dangerous! it's owned by CString, which is why PgAllocated will
                     //  block the dealloc
                     //let cstr = CString::from_raw(val);
@@ -224,7 +260,14 @@ impl<'s, T> TryFromPgDatum<'s> for Option<T>
 where
     T: 's + TryFromPgDatum<'s>,
 {
-    fn try_from<'mc>(memory_context: &'mc PgAllocator, datum:PgDatum<'mc>) -> Result<Self, &'static str> where Self: 's, 'mc: 's{
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
         if datum.is_null() {
             return Ok(None);
         }

@@ -9,9 +9,8 @@
 
 use std::ffi::c_void;
 use std::marker::{PhantomData, PhantomPinned};
-use std::mem::{self, ManuallyDrop};
+use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
 use std::ptr::NonNull;
 
 use crate::pg_sys;
@@ -55,7 +54,10 @@ impl PgAllocator {
         //  pg_sys::pfree(pg_data as *mut c_void)
         let methods = *self.0.methods;
         crate::guard_pg(|| {
-            methods.free_p.expect("free_p is none")(self.0.deref().deref() as *const _ as *mut _, ptr);
+            methods.free_p.expect("free_p is none")(
+                self.0.deref().deref() as *const _ as *mut _,
+                ptr,
+            );
         });
     }
 }
@@ -95,16 +97,22 @@ pub struct PgAllocated<'mc, T: 'mc + RawPtr> {
 // }
 
 // impl<'mc, T: 'mc + ?Sized> PgAllocated<'mc, T> {
-    
+
 
 //     pub unsafe fn take(mut self) -> *mut T {
 //         Box::into_raw(ManuallyDrop::into_inner(self.inner.take().unwrap()))
 //     }
 // }
 
-impl<'mc, T: RawPtr> PgAllocated<'mc, T> where T: 'mc + RawPtr {
-    pub unsafe fn from_raw(memory_context: &'mc PgAllocator, ptr: *mut <T as RawPtr>::Target) -> Self {
-        PgAllocated{ 
+impl<'mc, T: RawPtr> PgAllocated<'mc, T>
+where
+    T: 'mc + RawPtr,
+{
+    pub unsafe fn from_raw(
+        memory_context: &'mc PgAllocator,
+        ptr: *mut <T as RawPtr>::Target,
+    ) -> Self {
+        PgAllocated {
             inner: Some(ManuallyDrop::new(T::from_raw(ptr))),
             allocator: memory_context,
             _disable_send_sync: PhantomData,
@@ -117,14 +125,20 @@ impl<'mc, T: 'mc + RawPtr> Deref for PgAllocated<'mc, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.as_ref().expect("invalid None while PgAllocated is live").deref()
+        self.inner
+            .as_ref()
+            .expect("invalid None while PgAllocated is live")
+            .deref()
     }
 }
 
 impl<'mc, T: 'mc + RawPtr> DerefMut for PgAllocated<'mc, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // TODO: instead of requiring Option here, swap the opinter with 0, and allow free on 0, which is safe.
-        self.inner.as_mut().expect("invalid None while PgAllocated is live").deref_mut()
+        self.inner
+            .as_mut()
+            .expect("invalid None while PgAllocated is live")
+            .deref_mut()
     }
 }
 
@@ -150,7 +164,7 @@ pub trait RawPtr {
 impl RawPtr for std::ffi::CString {
     type Target = std::os::raw::c_char;
 
-    unsafe fn from_raw(ptr: *mut std::os::raw::c_char) -> Self{
+    unsafe fn from_raw(ptr: *mut std::os::raw::c_char) -> Self {
         std::ffi::CString::from_raw(ptr)
     }
 
