@@ -17,13 +17,28 @@ extern crate quote;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+
 use syn::token::Comma;
 use syn::Type;
 
-fn create_function_params(num_args: usize) -> TokenStream {
+fn create_function_params(num_args: usize, has_pg_allocator: bool) -> TokenStream {
     let mut tokens = TokenStream::new();
 
-    for i in 0..num_args {
+    // if the allocator is the first arg we want to start at 1
+    let start_at = if has_pg_allocator {
+        let arg_name = Ident::new("&memory_context"), Span::call_site());
+
+        tokens.extend(quote!(
+            #arg_name,
+        ));
+
+        1
+    } else {
+        0
+    };
+
+    for i in start_at..num_args {
         let arg_name = Ident::new(&format!("arg_{}", i), Span::call_site());
 
         tokens.extend(quote!(
@@ -53,14 +68,46 @@ fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<&Type> {
     types
 }
 
-fn extract_arg_data(arg_types: &[&Type]) -> TokenStream {
+/// Check if the argument is the PgAllocator (aka MemoryContext)
+fn check_for_pg_allocator(ty: &Type) -> bool {
+    // we only accept references, i.e. &PgAllocator
+    let type_ref = match ty {
+        Type::Reference(type_ref) => type_ref,
+        _ => return false,
+    };
+
+    // find the path and ident
+    match *type_ref.elem {
+        Type::Path(ref path) => path
+            .path
+            .segments
+            .iter()
+            .last()
+            .map_or(false, |p| p.ident.to_string() == stringify!(PgAllocator)),
+        _ => false,
+    }
+}
+
+/// Returns a token stream of all the argument data extracted from the SQL function parameters
+///   PgDatums, and converts them to the arg list for the Rust function.
+/// 
+/// # Return
+/// 
+/// The TokenStream of all the args, and a boolean if the first arg is the PgAllocator
+fn extract_arg_data(arg_types: &[&Type]) -> (TokenStream, bool) {
     let mut get_args_stream = TokenStream::new();
 
-    for (i, arg_type) in arg_types.iter().enumerate() {
-        let arg_name = Ident::new(&format!("arg_{}", i), Span::call_site());
+    // 1 to skip first 0, to use first arg.
+    let first_param_pg_allocator = check_for_pg_allocator(ty);
+    let skip_first = arg_types
+        .first()
+        .map_or(0, |ty| if first_param_pg_allocator { 1 } else { 0 });
+
+    for (i, arg_type) in arg_types.iter().skip(skip_first).enumerate() {
+        let arg_name = Ident::new(&format!("arg_{}", i), i.span());
         let arg_error = format!("unsupported function argument type for {}", arg_name);
 
-        let get_arg = quote!(
+        let get_arg = quote_spanned!( arg_type.span()=>
             let #arg_name: #arg_type = unsafe {
                 pg_extend::pg_datum::TryFromPgDatum::try_from(
                     &memory_context,
@@ -77,7 +124,7 @@ fn extract_arg_data(arg_types: &[&Type]) -> TokenStream {
         get_args_stream.extend(get_arg);
     }
 
-    get_args_stream
+    (get_args_stream, first_param_pg_allocator)
 }
 
 fn sql_param_list(num_args: usize) -> String {
@@ -99,13 +146,24 @@ fn sql_param_list(num_args: usize) -> String {
     tokens
 }
 
-fn sql_param_types(arg_types: &[&Type]) -> TokenStream {
+/// Returns a token stream for the function that creates the function
+///
+/// # Return
+/// 
+/// The TokenStream of all the args, and a boolean if the first arg is the PgAllocator
+fn sql_param_types(arg_types: &[&Type]) -> (TokenStream, bool) {
     let mut tokens = TokenStream::new();
 
-    for (i, arg_type) in arg_types.iter().enumerate() {
-        let sql_name = Ident::new(&format!("sql_{}", i), Span::call_site());
+    // 1 to skip first 0, to use first arg.
+    let first_param_pg_allocator = check_for_pg_allocator(ty);
+    let skip_first = arg_types
+        .first()
+        .map_or(0, |ty| if first_param_pg_allocator { 1 } else { 0 });
 
-        let sql_param = quote!(
+    for (i, arg_type) in arg_types.iter().skip(skip_first).enumerate() {
+        let sql_name = Ident::new(&format!("sql_{}", i), arg_type.span());
+
+        let sql_param = quote_spanned!( arg_type.span() =>
             #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(),
         );
 
@@ -121,7 +179,7 @@ fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
         syn::ReturnType::Type(_, ty) => quote!(#ty),
     };
 
-    quote!(pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
+    quote_spanned!(ty.span() => pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
 }
 
 /// Returns Rust code to figure out if the function takes optional arguments. Functions with
@@ -243,11 +301,11 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     function.extend(func_info);
 
     let arg_types = get_arg_types(inputs);
-    let get_args_from_datums = extract_arg_data(&arg_types);
-    let func_params = create_function_params(arg_types.len());
+    let (get_args_from_datums, has_pg_allocator) = extract_arg_data(&arg_types);
+    let func_params = create_function_params(arg_types.len(), has_pg_allocator);
 
     // wrap the original function in a pg_wrapper function
-    let func_wrapper = quote!(
+    let func_wrapper = quote_spanned!( func_name.span() =>
         #[no_mangle]
         pub extern "C" fn #func_wrapper_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
             use std::panic;
@@ -321,7 +379,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         syn::Ident::new(&format!("{}_pg_create_stmt", func_name), Span::call_site());
 
     let sql_params = sql_param_list(arg_types.len());
-    let sql_param_types = sql_param_types(&arg_types);
+    let (sql_param_types, has_pg_allocator) = sql_param_types(&arg_types);
     let sql_options = sql_function_options(&arg_types);
     let sql_return = sql_return_type(output);
 

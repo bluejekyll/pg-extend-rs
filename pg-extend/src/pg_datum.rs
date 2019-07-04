@@ -25,7 +25,7 @@ pub struct PgDatum<'mc>(Option<Datum>, PhantomData<NonNull<&'mc PgAllocator>>);
 impl<'mc> PgDatum<'mc> {
     /// Returns a new PgDatum wrapper for Datatypes used by Postgres.
     pub unsafe fn from_raw<B: Into<pg_bool::Bool>>(
-        memory_context: &'mc PgAllocator,
+        _memory_context: &'mc PgAllocator,
         datum: Datum,
         is_null: B,
     ) -> PgDatum<'mc> {

@@ -19,7 +19,7 @@ pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
 /// The pg_extern attribute wraps the function in the proper functions syntax for C extensions
 #[pg_extern]
-fn allocate() {
+fn allocate(memory_context: &PgAllocator) {
 //    let alloc = PgAllocator::current_context();
 
     //let allocated_u32 = alloc.alloc::<[u32; 10]>();
