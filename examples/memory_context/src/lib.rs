@@ -10,7 +10,6 @@ extern crate pg_extend;
 extern crate pg_extern_attr;
 
 
-use pg_extend::info;
 use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_magic;
 use pg_extern_attr::pg_extern;

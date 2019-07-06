@@ -21,10 +21,12 @@ use crate::pg_sys;
 pub struct PgAllocator(ManuallyDrop<Box<pg_sys::MemoryContextData>>);
 
 impl PgAllocator {
+    /// Instantiate a PgAllocator from the raw pointer.
     unsafe fn from_raw(context: *mut pg_sys::MemoryContextData) -> Self {
         Self(ManuallyDrop::new(Box::from_raw(context)))
     }
 
+    /// Establishes a PgAllocator from the current default context.
     pub fn current_context() -> Self {
         unsafe { Self::from_raw(pg_sys::CurrentMemoryContext) }
     }
@@ -48,7 +50,7 @@ impl PgAllocator {
     //     }
     // }
 
-    unsafe fn dealloc<'mc, T: ?Sized>(&'mc self, pg_data: *mut T) {
+    unsafe fn dealloc<T: ?Sized>(&self, pg_data: *mut T) {
         // TODO: see mctx.c in Postgres' source this probably needs more validation
         let ptr = pg_data as *mut c_void;
         //  pg_sys::pfree(pg_data as *mut c_void)
@@ -63,6 +65,8 @@ impl PgAllocator {
 }
 
 /// Types that were allocated by Postgres
+///
+/// Any data allocated by Postgres or being returned to Postgres for management must be stored in this value.
 pub struct PgAllocated<'mc, T: 'mc + RawPtr> {
     inner: Option<ManuallyDrop<T>>,
     allocator: &'mc PgAllocator,
@@ -70,44 +74,15 @@ pub struct PgAllocated<'mc, T: 'mc + RawPtr> {
     _not_unpin: PhantomPinned,
 }
 
-// impl<'mc, T: 'mc + ?Sized> PgAllocated<'mc, T> {
-//     pub unsafe fn pinned_from_raw(this: *mut T, allocator: &'mc PgAllocator) -> Pin<Box<Self>> {
-//         let this = PgAllocated {
-//             inner: Some(ManuallyDrop::new(Box::from_raw(this))),
-//             allocator,
-//             _disable_send_sync: PhantomData,
-//             _not_unpin: PhantomPinned,
-//         };
-
-//         Box::pin(this)
-//     }
-// }
-
-// impl<'mc, T: 'mc + Sized> PgAllocated<'mc, T> {
-//     pub unsafe fn from_raw(this: *mut T, allocator: &'mc PgAllocator) -> Self {
-//         let this = PgAllocated {
-//             inner: Some(ManuallyDrop::new(Box::from_raw(this))),
-//             allocator,
-//             _disable_send_sync: PhantomData,
-//             _not_unpin: PhantomPinned,
-//         };
-
-//         this
-//     }
-// }
-
-// impl<'mc, T: 'mc + ?Sized> PgAllocated<'mc, T> {
-
-
-//     pub unsafe fn take(mut self) -> *mut T {
-//         Box::into_raw(ManuallyDrop::into_inner(self.inner.take().unwrap()))
-//     }
-// }
-
 impl<'mc, T: RawPtr> PgAllocated<'mc, T>
 where
     T: 'mc + RawPtr,
 {
+    /// Creates a new Allocated type from Postgres.
+    ///
+    /// This does not allocate, it associates the lifetime of the Allocator to this type.
+    ///   it protects protects the wrapped type from being dropped by Rust, and uses the
+    ///   associated Postgres Allocator for freeing the backing memory.
     pub unsafe fn from_raw(
         memory_context: &'mc PgAllocator,
         ptr: *mut <T as RawPtr>::Target,
@@ -144,8 +119,9 @@ impl<'mc, T: 'mc + RawPtr> DerefMut for PgAllocated<'mc, T> {
 
 impl<'mc, T: RawPtr> Drop for PgAllocated<'mc, T> {
     fn drop(&mut self) {
-        if let Some(mut inner) = self.inner.take() {
+        if let Some(inner) = self.inner.take() {
             unsafe {
+                // TODO: do we need to run the drop on the inner type?
                 // let ptr: *mut T = mem::transmute(inner.deref_mut().deref_mut());
                 let ptr: *mut _ = ManuallyDrop::into_inner(inner).into_raw();
                 self.allocator.dealloc(ptr);
@@ -154,10 +130,14 @@ impl<'mc, T: RawPtr> Drop for PgAllocated<'mc, T> {
     }
 }
 
+/// Types which implement this can be converted from pointers to their Rust type and vice versa.
 pub trait RawPtr {
     type Target;
 
+    /// Instantiate the type from the pointer
     unsafe fn from_raw(ptr: *mut Self::Target) -> Self;
+
+    /// Consume this and return the pointer.
     unsafe fn into_raw(self) -> *mut Self::Target;
 }
 
