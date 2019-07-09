@@ -1,4 +1,4 @@
-// Copyright 2018 Benjamin Fry <benjaminfry@me.com>
+// Copyright 2018-2019 Benjamin Fry <benjaminfry@me.com>
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -13,18 +13,19 @@ use std::os::raw::c_int;
 use std::sync::atomic::compiler_fence;
 use std::sync::atomic::Ordering;
 
+pub mod pg_sys;
 pub mod pg_alloc;
 #[macro_use]
 pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
-
-pub mod log;
+pub mod pg_type;
 #[cfg(fdw)]
 pub mod pg_fdw;
 
-pub mod pg_sys;
-pub mod pg_type;
+pub mod log;
+pub mod native;
+
 /// A macro for marking a library compatible with the Postgres extension framework.
 ///
 /// This macro was initially inspired from the `pg_module` macro in https://github.com/thehydroimpulse/postgres-extension.rs

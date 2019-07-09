@@ -1,4 +1,4 @@
-// Copyright 2018 Benjamin Fry <benjaminfry@me.com>
+// Copyright 2018-2019 Benjamin Fry <benjaminfry@me.com>
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -31,24 +31,35 @@ impl PgAllocator {
         unsafe { Self::from_raw(pg_sys::CurrentMemoryContext) }
     }
 
-    // pub fn alloc<'mc, T>(&'mc self) -> PgAllocated<'mc, T>
-    // where
-    //     T: 'mc,
-    // {
-    //     let size = mem::size_of::<T>();
-    //     // TODO: is there anything we need to do in terms of layout, etc?
-    //     //let ptr = pg_sys::palloc(size) as *mut u8;
-    //     unsafe {
-    //         let ptr = crate::guard_pg(|| {
-    //             pg_sys::MemoryContextAllocZeroAligned(
-    //                 self.0.deref().deref() as *const _ as *mut _,
-    //                 size,
-    //             )
-    //         });
+    /// Sets this PgAllocator as the current memory context, and then resets it to the orevious
+    ///  after executing the function.
+    pub fn exec<R, F: FnOnce() -> R>(&self, f: F) -> R {
+        let previous_context;
+        unsafe {
+            // save the previous context
+            previous_context = pg_sys::CurrentMemoryContext;
 
-    //         PgAllocated::from_raw(mem::transmute(ptr), self)
-    //     }
-    // }
+            // set this context as the current
+            pg_sys::CurrentMemoryContext = self.0.deref() as *const _ as *mut _;
+        }
+
+        // TODO: should we catch panics here to guarantee the context is reset?
+        let result = f();
+
+        // reset the previous context
+        unsafe {
+            pg_sys::CurrentMemoryContext = previous_context;
+        }
+
+        result
+    }
+
+    /// Same as exec, but additionally wraps in with pg_guard
+    pub unsafe fn exec_with_guard<R, F: FnOnce() -> R>(&self, f: F) -> R {
+        use crate::guard_pg;
+
+        self.exec(|| guard_pg(f))
+    }
 
     unsafe fn dealloc<T: ?Sized>(&self, pg_data: *mut T) {
         // TODO: see mctx.c in Postgres' source this probably needs more validation
@@ -94,6 +105,10 @@ where
             _not_unpin: PhantomPinned,
         }
     }
+
+    pub fn as_ptr(&self) -> *const <T as RawPtr>::Target {
+        self.inner.as_ref().expect("nvalid None while PgAllocated is live").as_ptr()
+    }
 }
 
 impl<'mc, T: 'mc + RawPtr> Deref for PgAllocated<'mc, T> {
@@ -132,6 +147,7 @@ impl<'mc, T: RawPtr> Drop for PgAllocated<'mc, T> {
 
 /// Types which implement this can be converted from pointers to their Rust type and vice versa.
 pub trait RawPtr {
+    /// Type to which the pointer is associated.
     type Target;
 
     /// Instantiate the type from the pointer
@@ -139,16 +155,39 @@ pub trait RawPtr {
 
     /// Consume this and return the pointer.
     unsafe fn into_raw(self) -> *mut Self::Target;
+
+    /// Returns a pointer to this
+    fn as_ptr(&self) -> *const Self::Target;
 }
 
 impl RawPtr for std::ffi::CString {
     type Target = std::os::raw::c_char;
 
-    unsafe fn from_raw(ptr: *mut std::os::raw::c_char) -> Self {
+    unsafe fn from_raw(ptr: *mut Self::Target) -> Self {
         std::ffi::CString::from_raw(ptr)
     }
 
-    unsafe fn into_raw(self) -> *mut std::os::raw::c_char {
-        self.into_raw()
+    unsafe fn into_raw(self) -> *mut Self::Target {
+        std::ffi::CString::into_raw(self)
+    }
+
+    fn as_ptr(&self) -> *const Self::Target {
+        self.as_c_str().as_ptr()
+    }
+}
+
+impl RawPtr for Box<pg_sys::text> {
+    type Target = pg_sys::text;
+
+    unsafe fn from_raw(ptr: *mut Self::Target) -> Self {
+        Box::from_raw(ptr)
+    }
+
+    unsafe fn into_raw(self) -> *mut Self::Target {
+        Box::into_raw(self)
+    }
+
+    fn as_ptr(&self) -> *const Self::Target {
+        &**self
     }
 }

@@ -9,8 +9,11 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
+use pg_extend::native::Text;
+use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_magic;
 use pg_extern_attr::pg_extern;
+
 // This tells Postges this library is a Postgres extension
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
 
@@ -21,6 +24,13 @@ fn concat_rs(mut a: String, b: String) -> String {
 
     a
 }
+
+/// Zero overhead Text types directly from PG
+#[pg_extern]
+fn text_rs<'mc>(alloc: &'mc PgAllocator, text: Text<'mc>) -> Text<'mc> {
+    text
+}
+
 
 #[cfg(test)]
 mod tests {

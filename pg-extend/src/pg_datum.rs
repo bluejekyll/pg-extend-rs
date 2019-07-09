@@ -1,4 +1,4 @@
-// Copyright 2018 Benjamin Fry <benjaminfry@me.com>
+// Copyright 2018-2019 Benjamin Fry <benjaminfry@me.com>
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -14,6 +14,7 @@ use std::ptr::NonNull;
 use crate::pg_alloc::{PgAllocated, PgAllocator};
 use crate::pg_bool;
 use crate::pg_sys::{self, Datum};
+use crate::native::Text;
 
 /// A wrapper type for Postgres Datum's.
 ///
@@ -254,6 +255,27 @@ impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
             Err("datum was NULL")
         }
     }
+}
+
+impl<'s> TryFromPgDatum<'s> for Text<'s> {
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            let text_ptr = datum as *const pg_sys::text;
+
+        unsafe {
+            Ok(Text::from_raw(memory_context, text_ptr as *mut _))
+        }
+    } else {
+        Err("datum was NULL")
+    }
+}
 }
 
 impl<'s, T> TryFromPgDatum<'s> for Option<T>
