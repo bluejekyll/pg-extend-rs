@@ -18,12 +18,12 @@ use crate::pg_sys;
 /// An allocattor which uses the palloc and pfree functions available from Postgres.
 ///
 /// This is managed by Postgres and guarantees that all memory is freed after a transaction completes.
-pub struct PgAllocator(ManuallyDrop<Box<pg_sys::MemoryContextData>>);
+pub struct PgAllocator(NonNull<pg_sys::MemoryContextData>);
 
 impl PgAllocator {
     /// Instantiate a PgAllocator from the raw pointer.
     unsafe fn from_raw(context: *mut pg_sys::MemoryContextData) -> Self {
-        Self(ManuallyDrop::new(Box::from_raw(context)))
+        Self(NonNull::new_unchecked(context))
     }
 
     /// Establishes a PgAllocator from the current default context.
@@ -40,7 +40,7 @@ impl PgAllocator {
             previous_context = pg_sys::CurrentMemoryContext;
 
             // set this context as the current
-            pg_sys::CurrentMemoryContext = self.0.deref() as *const _ as *mut _;
+            pg_sys::CurrentMemoryContext = self.0.as_ref() as *const _ as *mut _;
         }
 
         // TODO: should we catch panics here to guarantee the context is reset?
@@ -65,10 +65,10 @@ impl PgAllocator {
         // TODO: see mctx.c in Postgres' source this probably needs more validation
         let ptr = pg_data as *mut c_void;
         //  pg_sys::pfree(pg_data as *mut c_void)
-        let methods = *self.0.methods;
+        let methods = *self.0.as_ref().methods;
         crate::guard_pg(|| {
             methods.free_p.expect("free_p is none")(
-                self.0.deref().deref() as *const _ as *mut _,
+                self.0.as_ref() as *const _ as *mut _,
                 ptr,
             );
         });
@@ -106,8 +106,14 @@ where
         }
     }
 
+    /// This consumes the inner pointer
+    pub unsafe fn into_ptr(&mut self) -> *mut <T as RawPtr>::Target {
+        let inner = self.inner.take().expect("invalid None while PgAllocated is live");
+        ManuallyDrop::into_inner(inner).into_raw()
+    }
+
     pub fn as_ptr(&self) -> *const <T as RawPtr>::Target {
-        self.inner.as_ref().expect("nvalid None while PgAllocated is live").as_ptr()
+        self.inner.as_ref().expect("invalid None while PgAllocated is live").as_ptr()
     }
 }
 
@@ -176,18 +182,18 @@ impl RawPtr for std::ffi::CString {
     }
 }
 
-impl RawPtr for Box<pg_sys::text> {
+impl RawPtr for NonNull<pg_sys::text> {
     type Target = pg_sys::text;
 
     unsafe fn from_raw(ptr: *mut Self::Target) -> Self {
-        Box::from_raw(ptr)
+        NonNull::new_unchecked(ptr)
     }
 
     unsafe fn into_raw(self) -> *mut Self::Target {
-        Box::into_raw(self)
+        NonNull::as_ptr(self)
     }
 
     fn as_ptr(&self) -> *const Self::Target {
-        &**self
+        unsafe { self.as_ref() }
     }
 }

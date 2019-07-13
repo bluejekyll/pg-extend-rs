@@ -14,11 +14,14 @@ extern crate syn;
 #[macro_use]
 extern crate quote;
 
+mod lifetime;
+
+use std::borrow::Cow;
+
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-
 use syn::token::Comma;
 use syn::Type;
 
@@ -44,7 +47,7 @@ fn create_function_params(num_args: usize, has_pg_allocator: HasPgAllocatorArg) 
     tokens
 }
 
-fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<&Type> {
+fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<syn::Type> {
     let mut types = Vec::new();
 
     for arg in inputs.iter() {
@@ -55,8 +58,12 @@ fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<&Type> {
             syn::FnArg::Inferred(_) => panic!("inferred function parameters not supported"),
             syn::FnArg::Captured(ref captured) => &captured.ty,
             syn::FnArg::Ignored(ref ty) => ty,
-
         };
+
+        // if it's carrying a lifetime, we're going to replace it with the annonymous one.
+        let mut arg_type = arg_type.clone();
+        lifetime::strip_type(&mut arg_type);
+
         types.push(arg_type);
     }
 
@@ -89,7 +96,7 @@ fn check_for_pg_allocator(ty: &Type) -> bool {
 /// # Return
 ///
 /// The TokenStream of all the args, and a boolean if the first arg is the PgAllocator
-fn extract_arg_data(arg_types: &[&Type]) -> (TokenStream, HasPgAllocatorArg) {
+fn extract_arg_data(arg_types: &[Type]) -> (TokenStream, HasPgAllocatorArg) {
     let mut get_args_stream = TokenStream::new();
 
     // 1 to skip first 0, to use first arg.
@@ -146,7 +153,7 @@ fn sql_param_list(num_args: usize) -> String {
 /// # Return
 ///
 /// The TokenStream of all the args, and a boolean if the first arg is the PgAllocator
-fn sql_param_types(arg_types: &[&Type]) -> (TokenStream, bool) {
+fn sql_param_types(arg_types: &[Type]) -> (TokenStream, bool) {
     let mut tokens = TokenStream::new();
 
     // 1 to skip first 0, to use first arg.
@@ -163,8 +170,8 @@ fn sql_param_types(arg_types: &[&Type]) -> (TokenStream, bool) {
     for (i, arg_type) in arg_types.iter().enumerate() {
         let sql_name = Ident::new(&format!("sql_{}", i), arg_type.span());
 
-        let sql_param = quote_spanned!( arg_type.span() =>
-            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(),
+        let sql_param = quote!(
+                        #sql_name = pg_extend::pg_type::PgType::from_rust::<String>().as_str(),
         );
 
         tokens.extend(sql_param);
@@ -174,6 +181,9 @@ fn sql_param_types(arg_types: &[&Type]) -> (TokenStream, bool) {
 }
 
 fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
+    let mut outputs = outputs.clone();
+    lifetime::strip_return_type(&mut outputs);
+
     let ty = match outputs {
         syn::ReturnType::Default => quote!(()),
         syn::ReturnType::Type(_, ty) => quote!(#ty),
@@ -187,7 +197,7 @@ fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
 ///
 /// > If this parameter is specified, the function is not executed when there are null arguments;
 /// > instead a null result is assumed automatically.
-fn sql_function_options(arg_types: &[&Type]) -> TokenStream {
+fn sql_function_options(arg_types: &[Type]) -> TokenStream {
     if arg_types.is_empty() {
         return quote!("",);
     }
@@ -284,7 +294,6 @@ fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
             &my_finfo
         }
     )
-
 }
 
 fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
@@ -307,7 +316,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     //let func_block = &func.block;
 
     // declare the function
-    let mut function = item.clone().into_token_stream();
+    let mut function = TokenStream::default();
 
     let func_wrapper_name = syn::Ident::new(&format!("pg_{}", func_name), Span::call_site());
     let func_info = get_info_fn(&func_wrapper_name);
@@ -417,7 +426,6 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
         #[allow(unused)]
         pub fn #create_sql_name(library_path: &str) -> String {
             use pg_extend::pg_type::PgTypeInfo;
-
             format!(
                 #sql_stmt,
                 #sql_param_types
@@ -492,8 +500,11 @@ pub fn pg_extern(
     // get a usable token stream
     let ast: syn::Item = parse_macro_input!(item as syn::Item);
 
+    // output the original function definition.
+    let mut expanded: TokenStream = ast.clone().into_token_stream();
+
     // Build the impl
-    let expanded: TokenStream = impl_info_for_fn(&ast);
+    expanded.extend(impl_info_for_fn(&ast));
 
     // Return the generated impl
     proc_macro::TokenStream::from(expanded)

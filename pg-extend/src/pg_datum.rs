@@ -89,7 +89,7 @@ impl<'s> TryFromPgDatum<'s> for i16 {
     }
 }
 
-impl From<i16> for PgDatum<'static> {
+impl From<i16> for PgDatum<'_> {
     fn from(value: i16) -> Self {
         PgDatum(Some(value as Datum), PhantomData)
     }
@@ -109,7 +109,7 @@ impl<'s> TryFromPgDatum<'s> for i32 {
     }
 }
 
-impl From<i32> for PgDatum<'static> {
+impl From<i32> for PgDatum<'_> {
     fn from(value: i32) -> Self {
         PgDatum(Some(value as Datum), PhantomData)
     }
@@ -133,7 +133,7 @@ impl<'s> TryFromPgDatum<'s> for i64 {
     }
 }
 
-impl From<i64> for PgDatum<'static> {
+impl From<i64> for PgDatum<'_> {
     fn from(value: i64) -> Self {
         assert!(
             std::mem::size_of::<Datum>() >= std::mem::size_of::<i64>(),
@@ -161,7 +161,7 @@ impl<'s> TryFromPgDatum<'s> for String {
 }
 
 // FIXME: this lifetime is wrong
-impl From<String> for PgDatum<'static> {
+impl From<String> for PgDatum<'_> {
     fn from(value: String) -> Self {
         use std::os::raw::c_char;
 
@@ -203,7 +203,7 @@ impl<'s> TryFromPgDatum<'s> for CString {
 }
 
 // FIXME: this lifetime is wrong
-impl From<CString> for PgDatum<'static> {
+impl From<CString> for PgDatum<'_> {
     fn from(value: CString) -> Self {
         use std::os::raw::c_char;
 
@@ -254,6 +254,16 @@ impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
         } else {
             Err("datum was NULL")
         }
+    }
+}
+
+impl<'s> From<Text<'s>> for PgDatum<'s> {
+    fn from(value: Text<'s>) -> Self {
+        use std::os::raw::c_char;
+
+        let ptr = unsafe { value.into_ptr() };
+
+        PgDatum(Some(ptr as Datum), PhantomData)
     }
 }
 
