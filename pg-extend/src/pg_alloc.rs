@@ -112,6 +112,7 @@ where
         ManuallyDrop::into_inner(inner).into_raw()
     }
 
+    /// Returns a pointer to the inner type
     pub fn as_ptr(&self) -> *const <T as RawPtr>::Target {
         self.inner.as_ref().expect("invalid None while PgAllocated is live").as_ptr()
     }

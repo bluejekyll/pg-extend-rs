@@ -6,10 +6,6 @@
 // copied, modified, or distributed except according to those terms.
 
 use syn;
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::token::Comma;
-use syn::Type;
 
 fn lifetime_to_anon(lifetime: &mut syn::Lifetime) {
     let anon_lifetime = syn::Ident::new("_", lifetime.ident.span());
@@ -27,13 +23,15 @@ fn sl_lifetime_def(lifetime_def: &mut syn::LifetimeDef) {
 fn sl_type_param_bound(bound: &mut syn::TypeParamBound) {
     use syn::TypeParamBound::*;
     match bound {
-        Trait(ref mut traitBound) => {
-            traitBound
+        Trait(ref mut trait_bound) => {
+            trait_bound
                 .lifetimes
                 .as_mut()
-                .map(|bound_lifetimes| for lifetime_def in &mut bound_lifetimes.lifetimes {});
+                .map(|bound_lifetimes| for lifetime_def in &mut bound_lifetimes.lifetimes {
+                    sl_lifetime_def(lifetime_def);
+                });
 
-            sl_path(&mut traitBound.path);
+            sl_path(&mut trait_bound.path);
         }
         Lifetime(ref mut lifetime) => lifetime_to_anon(lifetime),
     }
@@ -62,17 +60,17 @@ fn sl_path(path: &mut syn::Path) {
 
         match path_arguments {
             None => (),
-            AngleBracketed(ref mut angleBracketedGenericArguments) => {
-                for genericArgument in &mut angleBracketedGenericArguments.args {
-                    sl_generic_argument(genericArgument);
+            AngleBracketed(ref mut angle_bracketed_generic_arguments) => {
+                for generic_argument in &mut angle_bracketed_generic_arguments.args {
+                    sl_generic_argument(generic_argument);
                 }
             }
-            Parenthesized(ref mut parenthesizedGenericArguments) => {
-                for ty in &mut parenthesizedGenericArguments.inputs {
+            Parenthesized(ref mut parenthesizedgeneric_arguments) => {
+                for ty in &mut parenthesizedgeneric_arguments.inputs {
                     strip_type(ty);
                 }
 
-                strip_return_type(&mut parenthesizedGenericArguments.output);
+                strip_return_type(&mut parenthesizedgeneric_arguments.output);
             }
         }
     }
@@ -98,31 +96,31 @@ pub(crate) fn strip_type(ty: &mut syn::Type) {
     use syn::Type::*;
 
     match ty {
-        Slice(ref mut typeSlice) => strip_type(&mut typeSlice.elem),
-        Array(typeArray) => strip_type(&mut typeArray.elem),
-        Ptr(typePtr) => strip_type(&mut typePtr.elem),
-        Reference(typeReference) => strip_type(&mut typeReference.elem),
-        BareFn(typeBareFn) => unimplemented!("BareFn not supported by pg-extern: {:?}", typeBareFn),
-        Never(typeNever) => (),
-        Tuple(typeTuple) => {
-            for mut i in &mut typeTuple.elems {
+        Slice(ref mut type_slice) => strip_type(&mut type_slice.elem),
+        Array(type_array) => strip_type(&mut type_array.elem),
+        Ptr(type_ptr) => strip_type(&mut type_ptr.elem),
+        Reference(type_reference) => strip_type(&mut type_reference.elem),
+        BareFn(type_bare_fn) => unimplemented!("BareFn not supported by pg-extern: {:?}", type_bare_fn),
+        Never(_type_never) => (),
+        Tuple(type_tuple) => {
+            for mut i in &mut type_tuple.elems {
                 strip_type(&mut i);
             }
         }
-        Path(ref mut typePath) => sl_type_path(typePath),
-        TraitObject(typeTraitObject) => unimplemented!(
+        Path(ref mut type_path) => sl_type_path(type_path),
+        TraitObject(type_trait_object) => unimplemented!(
             "TraitObject not supported by pg-extern: {:?}",
-            typeTraitObject
+            type_trait_object
         ),
-        ImplTrait(typeImplTrait) => {
-            unimplemented!("ImplTrait not supported by pg-extern: {:?}", typeImplTrait)
+        ImplTrait(type_impl_trait) => {
+            unimplemented!("ImplTrait not supported by pg-extern: {:?}", type_impl_trait)
         }
-        Paren(typeParen) => unimplemented!("Paren not supported by pg-extern: {:?}", typeParen),
-        Group(typeGroup) => unimplemented!("Group not supported by pg-extern: {:?}", typeGroup),
-        Infer(typeInfer) => unimplemented!("Infer not supported by pg-extern: {:?}", typeInfer),
-        Macro(typeMacro) => unimplemented!("Macro not supported by pg-extern: {:?}", typeMacro),
-        Verbatim(typeVerbatim) => {
-            unimplemented!("Verbatim not supported by pg-extern: {:?}", typeVerbatim)
+        Paren(type_paren) => unimplemented!("Paren not supported by pg-extern: {:?}", type_paren),
+        Group(type_group) => unimplemented!("Group not supported by pg-extern: {:?}", type_group),
+        Infer(type_infer) => unimplemented!("Infer not supported by pg-extern: {:?}", type_infer),
+        Macro(type_macro) => unimplemented!("Macro not supported by pg-extern: {:?}", type_macro),
+        Verbatim(type_verbatim) => {
+            unimplemented!("Verbatim not supported by pg-extern: {:?}", type_verbatim)
         }
     }
 }

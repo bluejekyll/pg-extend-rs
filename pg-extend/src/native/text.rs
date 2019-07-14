@@ -5,26 +5,31 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use std::mem;
 use std::ffi::CString;
+use std::mem;
 use std::ops::Deref;
 use std::ptr::NonNull;
 use std::str;
 
+use crate::native::VarLenA;
 use crate::pg_alloc::{PgAllocated, PgAllocator, RawPtr};
 use crate::pg_sys;
 
+/// A zero-overhead view of `text` data from Postgres
 pub struct Text<'mc>(PgAllocated<'mc, NonNull<pg_sys::text>>);
 
 impl<'mc> Text<'mc> {
+    /// Create from the raw pointer to the Postgres data
     pub unsafe fn from_raw(alloc: &'mc PgAllocator, text_ptr: *mut pg_sys::text) -> Self {
         Text(PgAllocated::from_raw(alloc, text_ptr))
     }
 
+    /// Convert into the underlying pointer
     pub unsafe fn into_ptr(mut self) -> *mut pg_sys::text {
         self.0.into_ptr()
     }
 
+    /// Allocate a new Text data from the CString using the PgAllocator for the Postgres MemoryContext
     pub fn from_cstring(alloc: &'mc PgAllocator, s: CString) -> Self {
         unsafe {
             let text_ptr = { alloc.exec_with_guard(|| pg_sys::cstring_to_text(s.as_ptr())) };
@@ -33,21 +38,13 @@ impl<'mc> Text<'mc> {
         }
     }
 
-    fn as_text(&self) -> &pg_sys::text {
-        unsafe { self.0.as_ref() }
-    }
-
+    /// Return the length of the text data
     pub fn len(&self) -> usize {
-        use std::os::raw::c_char;
-
-        let len_bytes: [c_char; 4] = self.as_text().vl_len_;
-
-        // PG uses the low order two bits as length markers, we know this is 4 bytes... see VARSIZE_4B in postgres.h
-        // FIXME: what is the correct endianness here? PG is just straight casting, and then shifting, so big?
-        let unshifted = u32::from_ne_bytes(unsafe{ mem::transmute(len_bytes) });
-        (unshifted /*>> 2*/) as usize
+        let varlena = unsafe { VarLenA::from_varlena(self.0.as_ref()) };
+        varlena.len()
     }
 
+    /// Allocate a new CString, using the PgAllocator for the MemoryContext
     pub fn to_cstring(self, alloc: &'mc PgAllocator) -> PgAllocated<'mc, CString> {
         use std::os::raw::c_char;
 
@@ -74,15 +71,15 @@ impl<'mc> Text<'mc> {
             })
         }
     }
-
-    // TODO: look into low cost String conversion, requires text to be utf-8
 }
 
 impl<'mc> Deref for Text<'mc> {
     type Target = str;
 
     fn deref(&self) -> &str {
-        let len = self.len();
-        unsafe { str::from_utf8_unchecked(mem::transmute(self.as_text().vl_dat.as_slice(len))) }
+        unsafe {
+            let varlena = VarLenA::from_varlena(self.0.as_ref());
+            str::from_utf8_unchecked(mem::transmute(varlena.as_slice()))
+        }
     }
 }

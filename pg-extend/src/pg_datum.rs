@@ -259,10 +259,7 @@ impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
 
 impl<'s> From<Text<'s>> for PgDatum<'s> {
     fn from(value: Text<'s>) -> Self {
-        use std::os::raw::c_char;
-
         let ptr = unsafe { value.into_ptr() };
-
         PgDatum(Some(ptr as Datum), PhantomData)
     }
 }

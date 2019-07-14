@@ -16,8 +16,6 @@ extern crate quote;
 
 mod lifetime;
 
-use std::borrow::Cow;
-
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::punctuated::Punctuated;
