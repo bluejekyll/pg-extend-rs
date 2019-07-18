@@ -169,7 +169,7 @@ fn sql_param_types(arg_types: &[Type]) -> (TokenStream, bool) {
         let sql_name = Ident::new(&format!("sql_{}", i), arg_type.span());
 
         let sql_param = quote!(
-                        #sql_name = pg_extend::pg_type::PgType::from_rust::<String>().as_str(),
+            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(),
         );
 
         tokens.extend(sql_param);

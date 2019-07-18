@@ -20,7 +20,6 @@ pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
 pub mod pg_type;
-#[cfg(fdw)]
 pub mod pg_fdw;
 
 pub mod log;
