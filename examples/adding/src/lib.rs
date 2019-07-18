@@ -5,15 +5,14 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-extern crate pg_extern_attr;
 extern crate pg_extend;
+extern crate pg_extern_attr;
 
-use pg_extern_attr::pg_extern;
 use pg_extend::pg_magic;
+use pg_extern_attr::pg_extern;
 
 // This tells Postgres this library is a Postgres extension
 pg_magic!(version: pg_sys::PG_VERSION_NUM);
-
 
 /// The pg_extern attribute wraps the function in the proper functions syntax for C extensions
 #[pg_extern]
@@ -38,7 +37,6 @@ fn add_big_one(value: i64) -> i64 {
 fn add_together(v1: i64, v2: i32, v3: i16) -> i64 {
     (v1 + i64::from(v2) + i64::from(v3))
 }
-
 
 #[cfg(test)]
 mod tests {

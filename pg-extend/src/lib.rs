@@ -13,14 +13,14 @@ use std::os::raw::c_int;
 use std::sync::atomic::compiler_fence;
 use std::sync::atomic::Ordering;
 
-pub mod pg_sys;
 pub mod pg_alloc;
+pub mod pg_sys;
 #[macro_use]
 pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
-pub mod pg_type;
 pub mod pg_fdw;
+pub mod pg_type;
 
 pub mod log;
 pub mod native;

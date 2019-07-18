@@ -8,10 +8,10 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
+use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_datum::TryFromPgDatum;
 use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
 use pg_extend::{info, pg_datum, pg_magic, pg_type};
-use pg_extend::pg_alloc::PgAllocator;
 use pg_extern_attr::pg_foreignwrapper;
 
 use std::collections::HashMap;

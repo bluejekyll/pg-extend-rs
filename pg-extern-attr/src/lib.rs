@@ -83,7 +83,7 @@ fn check_for_pg_allocator(ty: &Type) -> bool {
             .segments
             .iter()
             .last()
-            .map_or(false, |p| p.ident.to_string() == stringify!(PgAllocator)),
+            .map_or(false, |p| p.ident == stringify!(PgAllocator)),
         _ => false,
     }
 }
@@ -210,6 +210,7 @@ fn sql_function_options(arg_types: &[Type]) -> TokenStream {
         arg_types
     };
 
+    // if it's empty param list, return empty param list
     if arg_types.is_empty() {
         return quote!("",);
     }

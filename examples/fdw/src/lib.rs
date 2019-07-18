@@ -32,7 +32,6 @@ struct MyRow {
     i: i32,
 }
 
-
 impl ForeignRow for MyRow {
     fn get_field(
         &self,

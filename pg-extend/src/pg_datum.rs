@@ -11,10 +11,10 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 
+use crate::native::Text;
 use crate::pg_alloc::{PgAllocated, PgAllocator};
 use crate::pg_bool;
 use crate::pg_sys::{self, Datum};
-use crate::native::Text;
 
 /// A wrapper type for Postgres Datum's.
 ///
@@ -57,7 +57,6 @@ impl<'mc> PgDatum<'mc> {
             None => 0 as Datum,
         }
     }
-
 }
 
 /// A trait that allows for conversions between Postgres Datum types and Rust types.
@@ -276,13 +275,11 @@ impl<'s> TryFromPgDatum<'s> for Text<'s> {
         if let Some(datum) = datum.0 {
             let text_ptr = datum as *const pg_sys::text;
 
-        unsafe {
-            Ok(Text::from_raw(memory_context, text_ptr as *mut _))
+            unsafe { Ok(Text::from_raw(memory_context, text_ptr as *mut _)) }
+        } else {
+            Err("datum was NULL")
         }
-    } else {
-        Err("datum was NULL")
     }
-}
 }
 
 impl<'s, T> TryFromPgDatum<'s> for Option<T>

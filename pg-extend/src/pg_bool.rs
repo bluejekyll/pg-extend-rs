@@ -19,7 +19,9 @@ const FALSE_CH: char = 0 as char;
 /// A macro to convert booleans between Postgres and Rust
 #[macro_export]
 macro_rules! pgbool {
-    ($x:expr) => ($crate::pg_bool::Bool::from($x).into())
+    ($x:expr) => {
+        $crate::pg_bool::Bool::from($x).into()
+    };
 }
 
 /// This type provides conversions for all the possible types that Postgres might use internally for
@@ -57,7 +59,7 @@ impl From<u8> for Bool {
     /// ```
     /// extern crate pg_extend;
     /// use pg_extend::pg_bool::Bool;
-    /// 
+    ///
     /// assert_eq!(u8::from(Bool::from(1_u8)), u8::from(Bool::from(true)));
     /// assert_eq!(u8::from(Bool::from(0_u8)), u8::from(Bool::from(false)));
     /// ```

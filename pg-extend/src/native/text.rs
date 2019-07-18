@@ -6,7 +6,6 @@
 // copied, modified, or distributed except according to those terms.
 
 use std::ffi::CString;
-use std::mem;
 use std::ops::Deref;
 use std::ptr::NonNull;
 use std::str;
@@ -26,7 +25,7 @@ impl<'mc> Text<'mc> {
 
     /// Convert into the underlying pointer
     pub unsafe fn into_ptr(mut self) -> *mut pg_sys::text {
-        self.0.into_ptr()
+        self.0.take_ptr()
     }
 
     /// Allocate a new Text data from the CString using the PgAllocator for the Postgres MemoryContext
@@ -38,6 +37,11 @@ impl<'mc> Text<'mc> {
         }
     }
 
+    /// Return true if this is empty
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Return the length of the text data
     pub fn len(&self) -> usize {
         let varlena = unsafe { VarLenA::from_varlena(self.0.as_ref()) };
@@ -45,7 +49,7 @@ impl<'mc> Text<'mc> {
     }
 
     /// Allocate a new CString, using the PgAllocator for the MemoryContext
-    pub fn to_cstring(self, alloc: &'mc PgAllocator) -> PgAllocated<'mc, CString> {
+    pub fn into_cstring(self, alloc: &'mc PgAllocator) -> PgAllocated<'mc, CString> {
         use std::os::raw::c_char;
 
         unsafe {
@@ -79,7 +83,7 @@ impl<'mc> Deref for Text<'mc> {
     fn deref(&self) -> &str {
         unsafe {
             let varlena = VarLenA::from_varlena(self.0.as_ref());
-            str::from_utf8_unchecked(mem::transmute(varlena.as_slice()))
+            str::from_utf8_unchecked(&*(varlena.as_slice() as *const [i8] as *const [u8]))
         }
     }
 }

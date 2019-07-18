@@ -67,10 +67,7 @@ impl PgAllocator {
         //  pg_sys::pfree(pg_data as *mut c_void)
         let methods = *self.0.as_ref().methods;
         crate::guard_pg(|| {
-            methods.free_p.expect("free_p is none")(
-                self.0.as_ref() as *const _ as *mut _,
-                ptr,
-            );
+            methods.free_p.expect("free_p is none")(self.0.as_ref() as *const _ as *mut _, ptr);
         });
     }
 }
@@ -107,14 +104,20 @@ where
     }
 
     /// This consumes the inner pointer
-    pub unsafe fn into_ptr(&mut self) -> *mut <T as RawPtr>::Target {
-        let inner = self.inner.take().expect("invalid None while PgAllocated is live");
+    pub unsafe fn take_ptr(&mut self) -> *mut <T as RawPtr>::Target {
+        let inner = self
+            .inner
+            .take()
+            .expect("invalid None while PgAllocated is live");
         ManuallyDrop::into_inner(inner).into_raw()
     }
 
     /// Returns a pointer to the inner type
     pub fn as_ptr(&self) -> *const <T as RawPtr>::Target {
-        self.inner.as_ref().expect("invalid None while PgAllocated is live").as_ptr()
+        self.inner
+            .as_ref()
+            .expect("invalid None while PgAllocated is live")
+            .as_ptr()
     }
 }
 

@@ -8,8 +8,8 @@ use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 
+use crate::pg_alloc::PgAllocator;
 use crate::{error, pg_datum, pg_sys, pg_type, warn};
-use crate::{pg_alloc::PgAllocator};
 
 /// A map from column names to data types. Tuple order is not currently
 /// preserved, it may be in the future.
@@ -219,7 +219,6 @@ impl<T: ForeignData> ForeignWrapper<T> {
         }
     }
 
-
     fn get_field<'mc>(
         _memory_context: &'mc PgAllocator,
         attr: &pg_sys::FormData_pg_attribute,
@@ -234,7 +233,11 @@ impl<T: ForeignData> ForeignWrapper<T> {
         row.get_field(&name, typ, opts).map_err(|e| e.into())
     }
 
-    fn tts_to_hashmap<'mc>(memory_context: &'mc PgAllocator, slot: *mut pg_sys::TupleTableSlot, tupledesc: &pg_sys::tupleDesc) -> Tuple<'mc> {
+    fn tts_to_hashmap<'mc>(
+        memory_context: &'mc PgAllocator,
+        slot: *mut pg_sys::TupleTableSlot,
+        tupledesc: &pg_sys::tupleDesc,
+    ) -> Tuple<'mc> {
         let attrs = unsafe { Self::tupdesc_attrs(tupledesc) };
 
         // Make sure the slot is fully populated
@@ -434,7 +437,11 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
 
         let fields = Self::tts_to_hashmap(&memory_context, slot, &*(*slot).tts_tupleDescriptor);
-        let fields_with_index = Self::tts_to_hashmap(&memory_context, plan_slot, &*(*plan_slot).tts_tupleDescriptor);
+        let fields_with_index = Self::tts_to_hashmap(
+            &memory_context,
+            plan_slot,
+            &*(*plan_slot).tts_tupleDescriptor,
+        );
         let result = (*wrapper).state.update(&fields, &fields_with_index);
 
         if result.is_none() {
@@ -456,7 +463,11 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         let wrapper = Box::from_raw((*rinfo).ri_FdwState as *mut Self);
 
-        let fields_with_index = Self::tts_to_hashmap(&memory_context, plan_slot, &*(*plan_slot).tts_tupleDescriptor);
+        let fields_with_index = Self::tts_to_hashmap(
+            &memory_context,
+            plan_slot,
+            &*(*plan_slot).tts_tupleDescriptor,
+        );
 
         let result = (*wrapper).state.delete(&fields_with_index);
 
@@ -528,7 +539,6 @@ impl<T: ForeignData> ForeignWrapper<T> {
             let dup = pg_sys::pstrdup(cstmt.as_ptr()) as *mut std::ffi::c_void;
             list = pg_sys::lappend(list, dup);
         }
-
 
         list
     }

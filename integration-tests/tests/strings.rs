@@ -20,5 +20,10 @@ fn test_text_rs() {
     test_in_db("strings", |conn| {
         let result = conn.query("SELECT text_rs('hello world!')", &[]).expect("query failed");
         assert_eq!(result.len(), 1);
+
+        let row = result.get(0);
+        let col: String = row.get(0);
+
+        assert_eq!(&col, "hello world!");
     });
 }
