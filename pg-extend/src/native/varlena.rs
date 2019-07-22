@@ -30,7 +30,9 @@ impl<'a> VarLenA<'a> {
         if (varattrib_1b.va_header & 0x01) == 0x00 {
             // #define VARATT_IS_4B(PTR) \
             // ((((varattrib_1b *) (PTR))->va_header & 0x01) == 0x00)
-            VarLenA::VarAtt4b(&*(varlena as *const pg_sys::varlena as *const pg_sys::varattrib_4b__bindgen_ty_1))
+            VarLenA::VarAtt4b(
+                &*(varlena as *const pg_sys::varlena as *const pg_sys::varattrib_4b__bindgen_ty_1),
+            )
         } else if (varattrib_1b.va_header & 0x03) == 0x00 {
             // #define VARATT_IS_4B_U(PTR) \
             // ((((varattrib_1b *) (PTR))->va_header & 0x03) == 0x00)
@@ -63,7 +65,8 @@ impl<'a> VarLenA<'a> {
             // define VARSIZE_4B(PTR) \
             // ((((varattrib_4b *) (PTR))->va_4byte.va_header >> 2) & 0x3FFFFFFF)
             VarAtt4b(varlena) => {
-                ((varlena.va_header >> 2) & 0x3FFF_FFFF) as usize - Self::size_of(&varlena.va_header)
+                ((varlena.va_header >> 2) & 0x3FFF_FFFF) as usize
+                    - Self::size_of(&varlena.va_header)
             }
             // #define VARSIZE_1B(PTR) \
             // ((((varattrib_1b *) (PTR))->va_header >> 1) & 0x7F)
@@ -72,7 +75,7 @@ impl<'a> VarLenA<'a> {
             }
             // #define VARTAG_1B_E(PTR) \
             // (((varattrib_1b_e *) (PTR))->va_tag)
-            _ => unimplemented!("this VarLenA type not yet supported"),
+            _ => unimplemented!("this VarLenA type not yet supported: {:?}", self),
         }
     }
 
@@ -85,7 +88,7 @@ impl<'a> VarLenA<'a> {
             match self {
                 VarAtt4b(varlena) => varlena.va_data.as_slice(len),
                 VarAtt1b(varlena) => varlena.va_data.as_slice(len),
-                _ => unimplemented!("this VarLenA type not yet supported"),
+                _ => unimplemented!("this VarLenA type not yet supported: {:?}", self),
             }
         }
     }
