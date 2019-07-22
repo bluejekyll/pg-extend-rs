@@ -336,7 +336,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     // wrap the original function in a pg_wrapper function
     let func_wrapper = quote_spanned!( func_name.span() =>
         #[no_mangle]
-        #[allow(unused_variables, unused_mut)]
+        #[allow(unused_variables, unused_mut, clippy::suspicious_else_formatting, clippy::unit_arg, clippy::let_unit_value)]
         pub extern "C" fn #func_wrapper_name (func_call_info: pg_extend::pg_sys::FunctionCallInfo) -> pg_extend::pg_sys::Datum {
             use std::panic;
             use pg_extend::pg_alloc::PgAllocator;

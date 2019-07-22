@@ -77,10 +77,12 @@ impl<'mc> Text<'mc> {
     }
 }
 
+/// *WARNING* This requires the database to be a UTF-8 locale.
 impl<'mc> Deref for Text<'mc> {
     type Target = str;
 
     fn deref(&self) -> &str {
+        // FIXME: this should panic if the DB is not UTF-8.
         unsafe {
             let varlena = VarLenA::from_varlena(self.0.as_ref());
             str::from_utf8_unchecked(&*(varlena.as_slice() as *const [i8] as *const [u8]))
