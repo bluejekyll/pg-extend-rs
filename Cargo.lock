@@ -851,6 +851,14 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "memory_context"
+version = "0.1.0"
+dependencies = [
+ "pg-extend 0.2.1",
+ "pg-extern-attr 0.2.2",
+]
+
+[[package]]
 name = "miniz-sys"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"

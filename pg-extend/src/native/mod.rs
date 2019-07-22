@@ -5,8 +5,12 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-extern crate pg_extend;
+//! Module for native Postgres types.
+//!
+//! These shoudl be near zero overhead types, exposed from Postgres and able to be directly used.
 
-use pg_extend::pg_create_stmt_bin;
+mod text;
+mod varlena;
 
-pg_create_stmt_bin!(DefaultFDW_pg_create_stmt);
+pub use text::Text;
+pub(crate) use varlena::VarLenA;

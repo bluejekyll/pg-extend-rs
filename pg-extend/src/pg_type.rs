@@ -1,5 +1,7 @@
 //! Postgres type definitions
 
+use crate::native::Text;
+
 /// See https://www.postgresql.org/docs/11/xfunc-c.html#XFUNC-C-TYPE-TABLE
 ///
 /// TODO: it would be cool to share code with the sfackler/rust-postgres project
@@ -174,7 +176,9 @@ pub trait PgTypeInfo {
     /// return the Postgres type
     fn pg_type() -> PgType;
     /// for distinguishing optional and non-optional arguments
-    fn is_option() -> bool { false }
+    fn is_option() -> bool {
+        false
+    }
 }
 
 impl PgTypeInfo for i16 {
@@ -213,10 +217,25 @@ impl PgTypeInfo for () {
     }
 }
 
-impl<T> PgTypeInfo for Option<T> where T: PgTypeInfo {
+impl<T> PgTypeInfo for Option<T>
+where
+    T: PgTypeInfo,
+{
     fn pg_type() -> PgType {
         T::pg_type()
     }
 
-    fn is_option() -> bool { true }
+    fn is_option() -> bool {
+        true
+    }
+}
+
+impl PgTypeInfo for Text<'_> {
+    fn pg_type() -> PgType {
+        PgType::Text
+    }
+
+    fn is_option() -> bool {
+        false
+    }
 }

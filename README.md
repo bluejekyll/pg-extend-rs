@@ -57,7 +57,7 @@ cargo test
 
 ## Features
 
-To use the Postgres allocator, the feature `pg_allocator` must be defined and enabled in the implementing crate.
+TBD
 
 ## Community
 

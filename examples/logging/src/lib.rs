@@ -9,7 +9,7 @@ extern crate pg_extend;
 extern crate pg_extern_attr;
 
 use pg_extend::pg_magic;
-use pg_extend::{error, warn, notice, info, log, debug, trace};
+use pg_extend::{debug, error, info, log, notice, trace, warn};
 use pg_extern_attr::pg_extern;
 
 // This tells Postgres this library is a Postgres extension

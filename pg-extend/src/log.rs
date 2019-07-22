@@ -112,7 +112,6 @@ macro_rules! trace {
     )
 }
 
-
 /// Log a `DEBUG1` level message. These are hidden by default
 #[macro_export]
 macro_rules! debug {

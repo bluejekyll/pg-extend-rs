@@ -8,9 +8,10 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
+use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_datum::TryFromPgDatum;
 use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
-use pg_extend::{pg_datum, pg_magic, pg_type, info};
+use pg_extend::{info, pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
 use std::collections::HashMap;
@@ -85,20 +86,20 @@ impl ForeignData for CacheFDW {
         _sopts: OptionMap,
         server_name: String,
         _rschema: String,
-        lschema: String
+        lschema: String,
     ) -> Option<Vec<String>> {
-        Some(vec!(format!("
+        Some(vec![format!(
+            "
 CREATE FOREIGN TABLE {schema}.mytable (
   key text,
   value text) SERVER {server}
-", server=server_name, schema=lschema)))
+",
+            server = server_name,
+            schema = lschema
+        )])
     }
 
-    fn index_columns(
-        _sopts: OptionMap,
-        _topts: OptionMap,
-        _tn: String,
-    ) -> Option<Vec<String>> {
+    fn index_columns(_sopts: OptionMap, _topts: OptionMap, _tn: String) -> Option<Vec<String>> {
         Some(vec!["key".into()])
     }
 
@@ -109,8 +110,12 @@ CREATE FOREIGN TABLE {schema}.mytable (
         match (key, value) {
             (Some(key), Some(value)) => {
                 // TODO: handle errors
-                let key = String::try_from((*key).clone()).unwrap();
-                let value = String::try_from((*value).clone()).unwrap();
+
+                // TODO: switch to currect memory context
+                let memory_context = PgAllocator::current_context();
+
+                let key = String::try_from(&memory_context, (*key).clone()).unwrap();
+                let value = String::try_from(&memory_context, (*value).clone()).unwrap();
                 c.insert(key.clone(), value.clone());
                 Some(Box::new(MyRow { key, value }))
             }
@@ -127,12 +132,15 @@ CREATE FOREIGN TABLE {schema}.mytable (
     }
 
     fn delete(&self, indices: &Tuple) -> Option<Box<ForeignRow>> {
+        // TODO: switch to correct memory context
+        let memory_context = PgAllocator::current_context();
+
         let mut c = get_cache().write().unwrap();
         let key = indices.get("key");
 
         match key {
             Some(key) => {
-                let key = String::try_from((*key).clone()).unwrap();
+                let key = String::try_from(&memory_context, (*key).clone()).unwrap();
                 match c.remove(&key) {
                     Some(value) => Some(Box::new(MyRow { key, value })),
                     None => None,

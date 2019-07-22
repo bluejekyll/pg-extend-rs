@@ -1,4 +1,4 @@
-// Copyright 2018 Benjamin Fry <benjaminfry@me.com>
+// Copyright 2018-2019 Benjamin Fry <benjaminfry@me.com>
 //
 // Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
@@ -13,30 +13,24 @@ use std::os::raw::c_int;
 use std::sync::atomic::compiler_fence;
 use std::sync::atomic::Ordering;
 
-#[cfg(feature = "pg_allocator")]
 pub mod pg_alloc;
+pub mod pg_sys;
 #[macro_use]
 pub mod pg_bool;
 pub mod pg_datum;
 pub mod pg_error;
+pub mod pg_fdw;
+pub mod pg_type;
 
 pub mod log;
-pub mod pg_fdw;
+pub mod native;
 
-pub mod pg_sys;
-pub mod pg_type;
 /// A macro for marking a library compatible with the Postgres extension framework.
 ///
 /// This macro was initially inspired from the `pg_module` macro in https://github.com/thehydroimpulse/postgres-extension.rs
 #[macro_export]
 macro_rules! pg_magic {
     (version: $vers:expr) => {
-        // Set the global allocator to use Postgres' allocator, which guarantees all memory freed at
-        //   transaction close.
-        #[global_allocator]
-        #[cfg(feature = "pg_allocator")]
-        static GLOBAL: pg_extend::pg_alloc::PgAllocator = pg_extend::pg_alloc::PgAllocator;
-
         #[no_mangle]
         #[allow(non_snake_case)]
         #[allow(unused)]
@@ -189,7 +183,6 @@ macro_rules! pg_create_stmt_bin {
         use std::env;
 
         // becuase the lib is a cdylib... maybe there's a better way?
-        #[cfg(not(feature = "pg_allocator"))]
         mod lib;
 
         #[cfg(target_os = "linux")]
@@ -198,18 +191,12 @@ macro_rules! pg_create_stmt_bin {
         #[cfg(target_os = "macos")]
         const DYLIB_EXT: &str = "dylib";
 
-        #[cfg(not(feature = "pg_allocator"))]
         fn main() {
             const LIB_NAME: &str = env!("CARGO_PKG_NAME");
 
             let lib_path = env::args().nth(1).unwrap_or_else(|| format!("target/release/lib{}.{}", LIB_NAME, DYLIB_EXT));
 
             $( println!("{}", lib::$func(&lib_path)); )*
-        }
-
-        #[cfg(feature = "pg_allocator")]
-        fn main() {
-            panic!("disable `pg_allocator` feature to print create STMTs")
         }
     };
 }
