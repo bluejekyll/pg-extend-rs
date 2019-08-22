@@ -3,8 +3,8 @@ extern crate integration_tests;
 use core::mem;
 use std::sync::{Arc, Mutex};
 
-use postgres::{Connection, HandleNotice};
 use postgres::error::DbError;
+use postgres::{Connection, HandleNotice};
 
 use integration_tests::*;
 
@@ -35,7 +35,7 @@ impl MsgCapture {
         mem::replace(&mut *msgs, Vec::new())
     }
     /// Returns a callback for Connection::set_notice_handler()
-    fn get_handler(&self) -> Box<HandleNotice> {
+    fn get_handler(&self) -> Box<dyn HandleNotice> {
         let msgs = self.msgs.clone();
         // HandleNotice trait is implemented for FnMut(DbError)
         return Box::new(move |e: DbError| {
