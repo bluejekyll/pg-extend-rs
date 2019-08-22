@@ -20,7 +20,7 @@ pub type Tuple<'mc> = HashMap<String, pg_datum::PgDatum<'mc>>;
 /// is responsible for creating row objects to return data.
 /// The object is only active for the lifetime of a query, so it
 /// is not an appropriate place to put caching or long-running connections.
-pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
+pub trait ForeignData: Iterator<Item = Box<dyn ForeignRow>> {
     /// Called when a scan is initiated. Note that any heavy set up
     /// such as making connections or allocating memory should not
     /// happen in this step, but on the first call to next()
@@ -61,7 +61,11 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// specified by index_columns. Do not assume columns present in indices
     /// were present in the UPDATE statement.
     /// Returns the updated row, or None if no update occured.
-    fn update<'mc>(&self, _new_row: &Tuple<'mc>, _indices: &Tuple<'mc>) -> Option<Box<ForeignRow>> {
+    fn update<'mc>(
+        &self,
+        _new_row: &Tuple<'mc>,
+        _indices: &Tuple<'mc>,
+    ) -> Option<Box<dyn ForeignRow>> {
         error!("Table does not support update");
         None
     }
@@ -69,7 +73,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// Method for INSERTs. Takes in new_row (which is a mapping of column
     /// names to values). Returns the inserted row, or None if no insert
     /// occurred.
-    fn insert<'mc>(&self, _new_row: &Tuple<'mc>) -> Option<Box<ForeignRow>> {
+    fn insert<'mc>(&self, _new_row: &Tuple<'mc>) -> Option<Box<dyn ForeignRow>> {
         error!("Table does not support insert");
         None
     }
@@ -77,7 +81,7 @@ pub trait ForeignData: Iterator<Item = Box<ForeignRow>> {
     /// Method for DELETEs. Takes in a indices is the same, which consists of columns
     /// specified by index_columns.
     /// Returns the deleted row, or None if no row was deleted.
-    fn delete<'mc>(&self, _indices: &Tuple<'mc>) -> Option<Box<ForeignRow>> {
+    fn delete<'mc>(&self, _indices: &Tuple<'mc>) -> Option<Box<dyn ForeignRow>> {
         error!("Table does not support delete");
         None
     }
@@ -222,7 +226,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     fn get_field<'mc>(
         _memory_context: &'mc PgAllocator,
         attr: &pg_sys::FormData_pg_attribute,
-        row: &'mc ForeignRow,
+        row: &'mc dyn ForeignRow,
     ) -> Result<Option<pg_datum::PgDatum<'mc>>, String> {
         let name = Self::name_to_string(attr.attname);
         // let typ = attr.atttypid;
