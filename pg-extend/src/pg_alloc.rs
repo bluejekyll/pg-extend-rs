@@ -7,13 +7,317 @@
 
 //! A Postgres Allocator
 
-use std::ffi::c_void;
+use std::ffi::{CString, c_void};
 use std::marker::{PhantomData, PhantomPinned};
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 
 use crate::pg_sys;
+
+/// Provides memory allocation which is wholly managed by Postgres' `MemoryContext`s
+pub struct PgMemoryContext {
+    memcxt: pg_sys::MemoryContext,
+    savedcxt: Option<pg_sys::MemoryContext>,
+}
+
+impl PgMemoryContext {
+
+    //
+    // allocation actions to be performed within this `PgMemoryContext`
+    //
+
+    /// Allocate memory in this `MemoryContext` and return a pointer it
+    pub fn alloc(&self, size: usize) -> *mut std::os::raw::c_void {
+        unsafe {
+            pg_sys::MemoryContextAlloc(self.memcxt, size)
+        }
+    }
+
+    /// Allocate memory in this `MemoryContext` and return a pointer to it
+    ///
+    /// ensures that all allocated bytes are zero'd
+    pub fn alloc0(&self, size: usize) -> *mut std::os::raw::c_void {
+        unsafe {
+            pg_sys::MemoryContextAllocZero(self.memcxt, size)
+        }
+    }
+
+    /// Free Postgres-allocated memory, regardless of the `MemoryContext`
+    /// in which it was allocated
+    pub fn pfree(ptr: *mut std::os::raw::c_void) {
+        unsafe {
+            pg_sys::pfree(ptr);
+        }
+    }
+
+
+    //
+    // whole-context management functions
+    //
+
+    /// Free's all memory allocated in this context and all child contexts, but keeps it usable
+    pub fn reset(&self) {
+        unsafe {
+            pg_sys::MemoryContextReset(self.memcxt)
+        }
+    }
+
+    /// Free's all memory allocated in this context only, leaving child contexts untouched
+    pub fn reset_only(&self) {
+        unsafe {
+            pg_sys::MemoryContextResetOnly(self.memcxt)
+        }
+    }
+
+    /// Deletes this memory context and all child contexts by freeing all allocated memory.
+    /// Afterwards, it is no longer usable
+    pub fn delete(self) {
+        unsafe {
+            pg_sys::MemoryContextDelete(self.memcxt);
+        }
+    }
+
+
+    //
+    // functions to make the wrapped `MemoryContext` the active Postgres `CurrentMemoryContext`
+    //
+
+    /// Switch to this `MemoryContext`.
+    ///
+    /// Prior to switching Postgres' `CurrentMemoryContext` will be remembered and automatically
+    /// restored when this instance is dropped or otherwise goes out of scope.
+    ///
+    /// Note that this does not mean that the memory allocated is freed, only that we restore
+    /// the context stack
+    pub fn switch_to(&mut self) -> &mut Self {
+        unsafe {
+            self.savedcxt = Some(pg_sys::CurrentMemoryContext);
+            pg_sys::CurrentMemoryContext = self.memcxt;
+        }
+        self
+    }
+
+    /// Execute code entirely within this `MemoryContext`
+    pub fn exec_in_context<R, F: FnOnce() -> R>(mut self, f: F) -> R {
+        self.switch_to();
+        f()
+    }
+
+
+    //
+    // functions for retrieving a specific Postgres `MemoryContext`
+    //
+
+    /// Create a named and sized `MemoryContext` that is a child of this `MemoryContext`
+    pub fn create(&self, name: &'static str, min_context_size: usize, initial_block_size: usize, max_block_size: usize) -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::AllocSetContextCreateExtended(
+                    self.memcxt,
+                    CString::new(name).expect("invalud MemoryContextName").as_ptr(),
+                    min_context_size,
+                    initial_block_size,
+                    max_block_size),
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Create a named `MemoryContext` of default Postgres sizes, that is a child of this `MemoryContext`
+    pub fn create_with_defaults(&self, name: &'static str) -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::AllocSetContextCreateExtended(
+                    self.memcxt,
+                    CString::new(name).expect("invalud MemoryContextName").as_ptr(),
+                    pg_sys::ALLOCSET_DEFAULT_MINSIZE as usize,
+                    pg_sys::ALLOCSET_DEFAULT_INITSIZE as usize,
+                    pg_sys::ALLOCSET_DEFAULT_MAXSIZE as usize),
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Create a `PgMemoryContext` from a raw Postgres `MemoryContext`
+    pub fn from_raw(memcxt: pg_sys::MemoryContext) -> Self {
+        PgMemoryContext {
+            memcxt: memcxt,
+            savedcxt: None,
+        }
+    }
+
+    /// Retrieves a reference to the `CurrentMemoryContext`
+    ///
+    /// At all times there is a "current" context denoted by the
+    /// CurrentMemoryContext global variable.  palloc() implicitly allocates space
+    /// in that context.  The MemoryContextSwitchTo() operation selects a new current
+    /// context (and returns the previous context, so that the caller can restore the
+    /// previous context before exiting).
+    pub fn current() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::CurrentMemoryContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `TopMemoryContext`
+    ///
+    /// TopMemoryContext --- this is the actual top level of the context tree;
+    /// every other context is a direct or indirect child of this one.  Allocating
+    /// here is essentially the same as "malloc", because this context will never
+    /// be reset or deleted.  This is for stuff that should live forever, or for
+    /// stuff that the controlling module will take care of deleting at the
+    /// appropriate time.  An example is fd.c's tables of open files.  Avoid
+    /// allocating stuff here unless really necessary, and especially avoid
+    /// running with CurrentMemoryContext pointing here.
+    pub fn top() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::TopMemoryContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `ErrorContext`
+    ///
+    /// ErrorContext --- this permanent context is switched into for error
+    /// recovery processing, and then reset on completion of recovery.  We arrange
+    /// to have a few KB of memory available in it at all times.  In this way, we
+    /// can ensure that some memory is available for error recovery even if the
+    /// backend has run out of memory otherwise.  This allows out-of-memory to be
+    /// treated as a normal ERROR condition, not a FATAL error.
+    pub fn error() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::ErrorContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `PostmasterContext`
+    ///
+    /// PostmasterContext --- this is the postmaster's normal working context.
+    /// After a backend is spawned, it can delete PostmasterContext to free its
+    /// copy of memory the postmaster was using that it doesn't need.
+    /// Note that in non-EXEC_BACKEND builds, the postmaster's copy of pg_hba.conf
+    /// and pg_ident.conf data is used directly during authentication in backend
+    /// processes; so backends can't delete PostmasterContext until that's done.
+    /// (The postmaster has only TopMemoryContext, PostmasterContext, and
+    /// ErrorContext --- the remaining top-level contexts are set up in each
+    /// backend during startup.)
+    pub fn postmaster() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::PostmasterContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `CacheMemoryContext`
+    ///
+    /// CacheMemoryContext --- permanent storage for relcache, catcache, and
+    /// related modules.  This will never be reset or deleted, either, so it's
+    /// not truly necessary to distinguish it from TopMemoryContext.  But it
+    /// seems worthwhile to maintain the distinction for debugging purposes.
+    /// (Note: CacheMemoryContext has child contexts with shorter lifespans.
+    /// For example, a child context is the best place to keep the subsidiary
+    /// storage associated with a relcache entry; that way we can free rule
+    /// parsetrees and so forth easily, without having to depend on constructing
+    /// a reliable version of freeObject().)
+    pub fn cache() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::CacheMemoryContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `MessageContext`
+    ///
+    /// MessageContext --- this context holds the current command message from the
+    /// frontend, as well as any derived storage that need only live as long as
+    /// the current message (for example, in simple-Query mode the parse and plan
+    /// trees can live here).  This context will be reset, and any children
+    /// deleted, at the top of each cycle of the outer loop of PostgresMain.  This
+    /// is kept separate from per-transaction and per-portal contexts because a
+    /// query string might need to live either a longer or shorter time than any
+    /// single transaction or portal.
+    pub fn message() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::MessageContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `TopTransactionContext`
+    ///
+    /// TopTransactionContext --- this holds everything that lives until end of the
+    /// top-level transaction.  This context will be reset, and all its children
+    /// deleted, at conclusion of each top-level transaction cycle.  In most cases
+    /// you don't want to allocate stuff directly here, but in CurTransactionContext;
+    /// what does belong here is control information that exists explicitly to manage
+    /// status across multiple subtransactions.  Note: this context is NOT cleared
+    /// immediately upon error; its contents will survive until the transaction block
+    /// is exited by COMMIT/ROLLBACK.
+    pub fn top_transaction() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::TopTransactionContext,
+                savedcxt: None,
+            }
+        }
+    }
+
+    /// Retrieves a reference to the `CurrentTransactionContext`
+    ///
+    /// CurTransactionContext --- this holds data that has to survive until the end
+    /// of the current transaction, and in particular will be needed at top-level
+    /// transaction commit.  When we are in a top-level transaction this is the same
+    /// as TopTransactionContext, but in subtransactions it points to a child context.
+    /// It is important to understand that if a subtransaction aborts, its
+    /// CurTransactionContext is thrown away after finishing the abort processing;
+    /// but a committed subtransaction's CurTransactionContext is kept until top-level
+    /// commit (unless of course one of the intermediate levels of subtransaction
+    /// aborts).  This ensures that we do not keep data from a failed subtransaction
+    /// longer than necessary.  Because of this behavior, you must be careful to clean
+    /// up properly during subtransaction abort --- the subtransaction's state must be
+    /// delinked from any pointers or lists kept in upper transactions, or you will
+    /// have dangling pointers leading to a crash at top-level commit.  An example of
+    /// data kept here is pending NOTIFY messages, which are sent at top-level commit,
+    /// but only if the generating subtransaction did not abort.
+    pub fn current_transaction() -> Self {
+        unsafe {
+            PgMemoryContext {
+                memcxt: pg_sys::CurTransactionContext,
+                savedcxt: None,
+            }
+        }
+    }
+}
+
+impl Drop for PgMemoryContext {
+
+    /// When a `PgMemoryContext` is dropped, which is just a lightweight Rust wrapper
+    /// around a Postgres-managed `MemoryContext` pointer, we need to switch back
+    /// the `MemoryContext` that was active before ``PgMemoryContext.switch_to()`` was called
+    ///
+    /// If `switch_to()` was never called, then there's nothing we need to do here
+    fn drop(&mut self) {
+        match self.savedcxt {
+            Some(savedcxt) => unsafe { pg_sys::CurrentMemoryContext = savedcxt },
+            None => ()
+        }
+    }
+}
 
 /// An allocattor which uses the palloc and pfree functions available from Postgres.
 ///
@@ -83,8 +387,8 @@ pub struct PgAllocated<'mc, T: 'mc + RawPtr> {
 }
 
 impl<'mc, T: RawPtr> PgAllocated<'mc, T>
-where
-    T: 'mc + RawPtr,
+    where
+        T: 'mc + RawPtr,
 {
     /// Creates a new Allocated type from Postgres.
     ///
