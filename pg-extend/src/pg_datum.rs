@@ -35,6 +35,14 @@ impl<'mc> PgDatum<'mc> {
         PgDatum(datum, PhantomData)
     }
 
+    /// Returns a new PgDatum wrapper if you already have Option<Datum>
+    pub unsafe fn from_option(
+        _memory_context: &'mc PgAllocator,
+        datum: Option<Datum>,
+    ) -> PgDatum<'mc> {
+        PgDatum(datum, PhantomData)
+    }
+
     /// Return true if this Datum is None
     ///
     /// # Notes

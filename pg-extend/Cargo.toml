@@ -22,6 +22,7 @@ fdw = []
 postgres-9 = ["fdw"]
 postgres-10 = ["fdw"]
 postgres-11 = []
+postgres-12 = []
 
 [dependencies]
 

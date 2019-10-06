@@ -60,7 +60,7 @@ fn main() {
         .expect("Couldn't write bindings!");
 
     let feature_version = get_postgres_feature_version(pg_include);
-    println!("cargo:rustc-cfg=feature=\"{}\"", feature_version)
+    println!("cargo:rustc-cfg=feature=\"{}\"", feature_version);
 }
 
 fn include_dir() -> Result<String, env::VarError> {
@@ -122,6 +122,7 @@ fn get_postgres_feature_version(pg_include: String) -> &'static str {
         ["9", _] => "postgres-9",
         ["10"] => "postgres-10",
         ["11"] => "postgres-11",
+        ["12"] => "postgres-12",
         val => panic!("unknown Postgres version {:?}", val),
     }
 }

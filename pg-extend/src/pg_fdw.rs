@@ -8,7 +8,7 @@
 
 // FDW on PostgreSQL 11+ is not supported. :(
 // If anyone tries to enable "fdw" feature with newer Postgres, throw error.
-#[cfg(feature = "postgres-11")]
+#[cfg(any(feature = "postgres-11", feature = "postgres-12"))]
 compile_error!("pg-extend-rs does not support FDW on PostgreSQL 11 or newer. See https://github.com/bluejekyll/pg-extend-rs/issues/49");
 
 use std::boxed::Box;
