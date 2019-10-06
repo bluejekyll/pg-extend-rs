@@ -44,7 +44,7 @@ impl ForeignRow for MyRow {
 }
 
 impl Iterator for DefaultFDW {
-    type Item = Box<ForeignRow>;
+    type Item = Box<dyn ForeignRow>;
     fn next(&mut self) -> Option<Self::Item> {
         self.i += 1;
         if self.i > 5 {
