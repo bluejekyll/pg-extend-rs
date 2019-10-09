@@ -4,6 +4,13 @@
 //! and https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
 //! For use with `#[pg_foreignwrapper]` from pg-extend-attr
 
+#![cfg(feature = "fdw")]
+
+// FDW on PostgreSQL 11+ is not supported. :(
+// If anyone tries to enable "fdw" feature with newer Postgres, throw error.
+#[cfg(feature = "postgres-11")]
+compile_error!("pg-extend-rs does not support FDW on PostgreSQL 11 or newer. See https://github.com/bluejekyll/pg-extend-rs/issues/49");
+
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};

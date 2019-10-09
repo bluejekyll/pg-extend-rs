@@ -17,9 +17,10 @@ license = "MIT/Apache-2.0"
 build = "build.rs"
 
 [features]
-default = ["postgres-10"]
-postgres-9 = []
-postgres-10 = []
+default = []
+fdw = []
+postgres-9 = ["fdw"]
+postgres-10 = ["fdw"]
 postgres-11 = []
 
 [dependencies]
