@@ -62,6 +62,15 @@ matrix:
       script:
         - cargo clippy -- -D warnings
 
+    # Cargo audit of dependencies
+    - env: NAME=package-audit
+      before_install:
+        - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then scripts/install_openssl_deb.sh; fi
+        - cargo install cargo-audit
+        - cargo check
+      script:
+        - cargo audit --deny-warnings
+
 script:
   - cargo test
 
