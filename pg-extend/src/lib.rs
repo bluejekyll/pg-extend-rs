@@ -126,10 +126,10 @@ pub fn register_panic_handler() {
 pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     // setup the check protection
     let original_exception_stack: *mut pg_sys::sigjmp_buf = pg_sys::PG_exception_stack;
-    let mut local_exception_stack: pg_sys::sigjmp_buf = mem::uninitialized();
+    let mut local_exception_stack: mem::MaybeUninit<pg_sys::sigjmp_buf> = mem::MaybeUninit::uninit();
     let jumped = pg_sys::sigsetjmp(
         // grab a mutable reference, cast to a mutabl pointr, then case to the expected erased pointer type
-        &mut local_exception_stack as *mut pg_sys::sigjmp_buf as *mut _,
+        local_exception_stack.as_mut_ptr() as *mut pg_sys::sigjmp_buf as *mut _,
         1,
     );
     // now that we have the local_exception_stack, we set that for any PG longjmps...
@@ -144,7 +144,7 @@ pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     }
 
     // replace the exception stack with ours to jump to the above point
-    pg_sys::PG_exception_stack = &mut local_exception_stack as *mut _;
+    pg_sys::PG_exception_stack = local_exception_stack.as_mut_ptr() as *mut _;
 
     // enforce that the setjmp is not reordered, though that's probably unlikely...
     compiler_fence(Ordering::SeqCst);
