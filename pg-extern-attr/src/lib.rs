@@ -50,9 +50,7 @@ fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<syn::Type> {
 
     for arg in inputs.iter() {
         let arg_type: &syn::Type = match *arg {
-            syn::FnArg::Receiver(_) => {
-                panic!("self functions not supported")
-            }
+            syn::FnArg::Receiver(_) => panic!("self functions not supported"),
             syn::FnArg::Typed(ref ty) => &ty.ty,
         };
 

@@ -68,7 +68,11 @@ pub trait ForeignData: Iterator<Item = Box<dyn ForeignRow>> {
     /// specified by index_columns. Do not assume columns present in indices
     /// were present in the UPDATE statement.
     /// Returns the updated row, or None if no update occured.
-    fn update<'mc>(&self, _new_row: &Tuple<'mc>, _indices: &Tuple<'mc>) -> Option<Box<dyn ForeignRow>> {
+    fn update<'mc>(
+        &self,
+        _new_row: &Tuple<'mc>,
+        _indices: &Tuple<'mc>,
+    ) -> Option<Box<dyn ForeignRow>> {
         error!("Table does not support update");
         None
     }

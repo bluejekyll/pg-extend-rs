@@ -17,4 +17,3 @@ fn test_longjmping() {
         assert!(result.is_err());
     });
 }
-

@@ -14,7 +14,9 @@ fn test_add_one() {
         assert_eq!(col, 2);
 
         // Calling the function with NULL argument returns NULL because it's declared STRICT
-        let result = conn.query("SELECT add_one(NULL)", &[]).expect("query failed");
+        let result = conn
+            .query("SELECT add_one(NULL)", &[])
+            .expect("query failed");
         assert_eq!(result.len(), 1);
 
         let row = result.get(0);
@@ -29,7 +31,7 @@ fn test_add_one_null() {
     test_in_db("adding", |conn| {
         // Rust add_big_one function should not be called because we declare it STRICT.
         let result = conn
-            .query("SELECT add_big_one(CAST(NULL as int8))",&[])
+            .query("SELECT add_big_one(CAST(NULL as int8))", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 

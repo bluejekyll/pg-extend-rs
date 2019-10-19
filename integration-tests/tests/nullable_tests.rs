@@ -19,7 +19,9 @@ fn test_get_null() {
 fn test_rs_nullif() {
     test_in_db("nullable", |conn| {
         // 'a', 'b' => 'a'
-        let result = conn.query("SELECT rs_nullif('a', 'b')", &[]).expect("query failed");
+        let result = conn
+            .query("SELECT rs_nullif('a', 'b')", &[])
+            .expect("query failed");
         assert_eq!(result.len(), 1);
 
         let row = result.get(0);
@@ -28,7 +30,9 @@ fn test_rs_nullif() {
         assert_eq!(col, Some("a".to_string()));
 
         // '-', '-' => NULL
-        let result = conn.query("SELECT rs_nullif('-', '-')", &[]).expect("query failed");
+        let result = conn
+            .query("SELECT rs_nullif('-', '-')", &[])
+            .expect("query failed");
         assert_eq!(result.len(), 1);
 
         let row = result.get(0);
@@ -37,7 +41,9 @@ fn test_rs_nullif() {
         assert_eq!(col, None);
 
         // 'a', NULL => 'a'
-        let result = conn.query("SELECT rs_nullif('a', NULL)", &[]).expect("query failed");
+        let result = conn
+            .query("SELECT rs_nullif('a', NULL)", &[])
+            .expect("query failed");
         assert_eq!(result.len(), 1);
 
         let row = result.get(0);
@@ -46,7 +52,9 @@ fn test_rs_nullif() {
         assert_eq!(col, Some("a".to_string()));
 
         // NULL, '-' => NULL
-        let result = conn.query("SELECT rs_nullif(NULL, '-')", &[]).expect("query failed");
+        let result = conn
+            .query("SELECT rs_nullif(NULL, '-')", &[])
+            .expect("query failed");
         assert_eq!(result.len(), 1);
 
         let row = result.get(0);
