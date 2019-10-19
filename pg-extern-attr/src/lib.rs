@@ -50,12 +50,10 @@ fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<syn::Type> {
 
     for arg in inputs.iter() {
         let arg_type: &syn::Type = match *arg {
-            syn::FnArg::SelfRef(_) | syn::FnArg::SelfValue(_) => {
+            syn::FnArg::Receiver(_) => {
                 panic!("self functions not supported")
             }
-            syn::FnArg::Inferred(_) => panic!("inferred function parameters not supported"),
-            syn::FnArg::Captured(ref captured) => &captured.ty,
-            syn::FnArg::Ignored(ref ty) => ty,
+            syn::FnArg::Typed(ref ty) => &ty.ty,
         };
 
         // if it's carrying a lifetime, we're going to replace it with the annonymous one.
@@ -297,22 +295,19 @@ fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
 
 fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let func = if let syn::Item::Fn(func) = item {
-        func
+        &func.sig
     } else {
         panic!("annotation only supported on functions");
     };
 
     let func_name = &func.ident;
-    let func_decl = &func.decl;
 
-    if func_decl.variadic.is_some() {
+    if func.variadic.is_some() {
         panic!("variadic functions (...) not supported")
     }
 
-    //let generics = &func_decl.generics;
-    let inputs = &func_decl.inputs;
-    let output = &func_decl.output;
-    //let func_block = &func.block;
+    let inputs = &func.inputs;
+    let output = &func.output;
 
     // declare the function
     let mut function = TokenStream::default();

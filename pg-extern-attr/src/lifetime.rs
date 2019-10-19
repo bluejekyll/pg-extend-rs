@@ -124,5 +124,8 @@ pub(crate) fn strip_type(ty: &mut syn::Type) {
         Verbatim(type_verbatim) => {
             unimplemented!("Verbatim not supported by pg-extern: {:?}", type_verbatim)
         }
+        t => {
+            unimplemented!("Unsupported type: {:?}", t)
+        }
     }
 }
