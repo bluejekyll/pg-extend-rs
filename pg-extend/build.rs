@@ -65,7 +65,10 @@ fn main() {
 
 fn include_dir() -> Result<String, env::VarError> {
     env::var("PG_INCLUDE_PATH").or_else(|err| {
-        match Command::new("pg_config").arg("--includedir-server").output() {
+        match Command::new("pg_config")
+            .arg("--includedir-server")
+            .output()
+        {
             Ok(out) => Ok(String::from_utf8(out.stdout).unwrap().trim().to_string()),
             Err(..) => Err(err),
         }
@@ -88,21 +91,29 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
 fn get_postgres_feature_version(pg_include: String) -> &'static str {
     let clang = clang::Clang::new().unwrap();
     let index = clang::Index::new(&clang, false, false);
-    let repr = index.parser("pg_majorversion.h")
+    let repr = index
+        .parser("pg_majorversion.h")
         .arguments(&[format!("-I{}", pg_include)])
         .parse()
         .expect("failed to parse pg_config.h");
 
     // Find the variable declaration
-    let major_version = repr.get_entity().get_children().into_iter().find(|e| {
-        e.get_kind() == clang::EntityKind::VarDecl
-            && e.get_name() == Some("pg_majorversion".into())
-    }).expect("Couldn't find major version");
+    let major_version = repr
+        .get_entity()
+        .get_children()
+        .into_iter()
+        .find(|e| {
+            e.get_kind() == clang::EntityKind::VarDecl
+                && e.get_name() == Some("pg_majorversion".into())
+        })
+        .expect("Couldn't find major version");
 
     // Find the string literal within the declaration
-    let string_literal = major_version.get_children().into_iter().find(|e| {
-        e.get_kind() == clang::EntityKind::StringLiteral
-    }).expect("couldn't find string literal for major version");
+    let string_literal = major_version
+        .get_children()
+        .into_iter()
+        .find(|e| e.get_kind() == clang::EntityKind::StringLiteral)
+        .expect("couldn't find string literal for major version");
 
     let version = string_literal.get_display_name().unwrap().replace("\"", "");
     let version = version.split(".").collect::<Vec<_>>();

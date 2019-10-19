@@ -3,8 +3,8 @@ extern crate integration_tests;
 use core::mem;
 use std::sync::{Arc, Mutex};
 
-use postgres::{Connection, HandleNotice};
 use postgres::error::DbError;
+use postgres::{Connection, HandleNotice};
 
 use integration_tests::*;
 
