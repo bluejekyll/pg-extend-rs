@@ -102,6 +102,46 @@ impl From<i16> for PgDatum<'_> {
     }
 }
 
+impl<'s> TryFromPgDatum<'s> for f32 {
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            Ok(f32::from_bits(datum as u32))
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl From<f32> for PgDatum<'_> {
+    fn from(value: f32) -> Self {
+        PgDatum(Some(f32::to_bits(value) as Datum), PhantomData)
+    }
+}
+
+impl<'s> TryFromPgDatum<'s> for f64 {
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            Ok(f64::from_bits(datum as u64))
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl From<f64> for PgDatum<'_> {
+    fn from(value: f64) -> Self {
+        PgDatum(Some(f64::to_bits(value) as Datum), PhantomData)
+    }
+}
+
 impl<'s> TryFromPgDatum<'s> for i32 {
     fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
     where
