@@ -181,6 +181,18 @@ pub trait PgTypeInfo {
     }
 }
 
+impl PgTypeInfo for f32 {
+    fn pg_type() -> PgType {
+        PgType::Float4
+    }
+}
+
+impl PgTypeInfo for f64 {
+    fn pg_type() -> PgType {
+        PgType::Float8
+    }
+}
+
 impl PgTypeInfo for i16 {
     fn pg_type() -> PgType {
         PgType::Int2
