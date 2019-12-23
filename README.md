@@ -31,8 +31,11 @@ First install Postgres. The build should be able to find the directory for the P
 For the dynamic library to compile, your project should also have `.cargo/config` file with content:
 
 ```toml
-[build]
+[target.'cfg(unix)']
 rustflags = "-C link-arg=-undefineddynamic_lookup"
+
+[target.'cfg(windows)']
+rustflags = "-C link-arg=/FORCE"
 ```
 
 This informs the linker that some of the symbols for Postgres won't be available until runtime on the dynamic library load.
