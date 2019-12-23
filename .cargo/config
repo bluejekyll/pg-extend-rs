@@ -1,5 +1,5 @@
 # Informs the linker that some of the symbols for Postgres won't be available
-# until runtime on the dynamic library load. Flags differ based on OS family
+# until runtime on the dynamic library load. Flags differ based on target family
 
 [target.'cfg(unix)']
 rustflags = "-C link-arg=-undefineddynamic_lookup"
