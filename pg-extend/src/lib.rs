@@ -122,7 +122,7 @@ pub fn register_panic_handler() {
 
             // the panic came from a pg longjmp... so unwrap it and rethrow
             unsafe {
-                pg_sys::siglongjmp(
+                pg_sys_longjmp(
                     pg_sys::PG_exception_stack as *mut _,
                     panic_context.jump_value,
                 );
@@ -136,6 +136,16 @@ pub fn register_panic_handler() {
     }));
 }
 
+#[cfg(windows)]
+unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
+    pg_sys::longjmp(_buf, _value);
+}
+
+#[cfg(unix)]
+unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
+    pg_sys::siglongjmp(_buf, _value);
+}
+
 /// Provides a barrier between Rust and Postgres' usage of the C set/longjmp
 ///
 /// In the case of a longjmp being caught, this will convert that to a panic. For this to work
@@ -144,6 +154,7 @@ pub fn register_panic_handler() {
 ///   this is already handled.
 ///
 /// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
+#[cfg(unix)]
 #[inline(never)]
 pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     // setup the check protection
@@ -154,6 +165,49 @@ pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
         // grab a mutable reference, cast to a mutabl pointr, then case to the expected erased pointer type
         local_exception_stack.as_mut_ptr() as *mut pg_sys::sigjmp_buf as *mut _,
         1,
+    );
+    // now that we have the local_exception_stack, we set that for any PG longjmps...
+
+    if jumped != 0 {
+        notice!("PG longjmped: {}", jumped);
+        pg_sys::PG_exception_stack = original_exception_stack;
+
+        // The C Panicked!, handling control to Rust Panic handler
+        compiler_fence(Ordering::SeqCst);
+        panic!(JumpContext { jump_value: jumped });
+    }
+
+    // replace the exception stack with ours to jump to the above point
+    pg_sys::PG_exception_stack = local_exception_stack.as_mut_ptr() as *mut _;
+
+    // enforce that the setjmp is not reordered, though that's probably unlikely...
+    compiler_fence(Ordering::SeqCst);
+    let result = f();
+
+    compiler_fence(Ordering::SeqCst);
+    pg_sys::PG_exception_stack = original_exception_stack;
+
+    result
+}
+
+/// Provides a barrier between Rust and Postgres' usage of the C set/longjmp
+///
+/// In the case of a longjmp being caught, this will convert that to a panic. For this to work
+///   properly, there must be a Rust panic handler (see crate::register_panic_handler).PanicContext
+///   If the `pg_exern` attribute macro is used for exposing Rust functions to Postgres, then
+///   this is already handled.
+///
+/// See the man pages for info on setjmp http://man7.org/linux/man-pages/man3/setjmp.3.html
+#[cfg(windows)]
+#[inline(never)]
+pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
+    // setup the check protection
+    let original_exception_stack: *mut pg_sys::jmp_buf = pg_sys::PG_exception_stack;
+    let mut local_exception_stack: mem::MaybeUninit<pg_sys::jmp_buf> =
+        mem::MaybeUninit::uninit();
+    let jumped = pg_sys::_setjmp(
+        // grab a mutable reference, cast to a mutabl pointr, then case to the expected erased pointer type
+        local_exception_stack.as_mut_ptr() as *mut pg_sys::jmp_buf as *mut _,
     );
     // now that we have the local_exception_stack, we set that for any PG longjmps...
 
@@ -213,6 +267,9 @@ macro_rules! pg_create_stmt_bin {
 
         #[cfg(target_os = "macos")]
         const DYLIB_EXT: &str = "dylib";
+
+        #[cfg(target_os = "windows")]
+        const DYLIB_EXT: &str = "dll";
 
         fn main() {
             const LIB_NAME: &str = env!("CARGO_PKG_NAME");

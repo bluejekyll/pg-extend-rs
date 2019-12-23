@@ -38,8 +38,7 @@ fn main() {
         .collect(),
     );
 
-    let bindings = bindgen::Builder::default()
-        .clang_arg(format!("-I{}", pg_include))
+    let bindings = get_bindings(&pg_include) // Gets initial bindings that are OS-dependant
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
@@ -61,6 +60,63 @@ fn main() {
 
     let feature_version = get_postgres_feature_version(pg_include);
     println!("cargo:rustc-cfg=feature=\"{}\"", feature_version);
+}
+
+#[cfg(windows)]
+fn get_bindings(pg_include: &str) -> bindgen::Builder {
+    // Compilation in windows requires these extra inclde paths
+    let pg_include_win32_msvc = format!("{}\\port\\win32_msvc", pg_include);
+    let pg_include_win32 = format!("{}\\port\\win32", pg_include);
+    // The `pg_include` path comes in the format og "includes/server", but we also need
+    // the parent folder, so we remove the "/server" part at the end
+    let pg_include_parent = pg_include[..(pg_include.len() - 7)].to_owned();
+
+    bindgen::Builder::default()
+        .clang_arg(format!("-I{}", pg_include_win32_msvc))
+        .clang_arg(format!("-I{}", pg_include_win32))
+        .clang_arg(format!("-I{}", pg_include))
+        .clang_arg(format!("-I{}", pg_include_parent))
+        // Whitelist all PG-related functions
+        .whitelist_function("pg.*")
+        // Whitelist used functions
+        .whitelist_function("longjmp")
+        .whitelist_function("_setjmp")
+        .whitelist_function("cstring_to_text")
+        .whitelist_function("text_to_cstring")
+        .whitelist_function("errmsg")
+        .whitelist_function("errstart")
+        .whitelist_function("errfinish")
+        .whitelist_function("pfree")
+        // Whitelist all PG-related types
+        .whitelist_type("PG.*")
+        // Whitelist used types
+        .whitelist_type("jmp_buf")
+        .whitelist_type("text")
+        .whitelist_type("varattrib_1b")
+        .whitelist_type("varattrib_4b")
+        // Whitelist PG-related values
+        .whitelist_var("PG.*")
+        // Whitelist log-level values
+        .whitelist_var("DEBUG.*")
+        .whitelist_var("LOG.*")
+        .whitelist_var("INFO")
+        .whitelist_var("NOTICE")
+        .whitelist_var("WARNING")
+        .whitelist_var("ERROR")
+        .whitelist_var("FATAL")
+        .whitelist_var("PANIC")
+        // Whitelist misc values
+        .whitelist_var("CurrentMemoryContext")
+        .whitelist_var("FUNC_MAX_ARGS")
+        .whitelist_var("INDEX_MAX_KEYS")
+        .whitelist_var("NAMEDATALEN")
+        .whitelist_var("USE_FLOAT.*")
+}
+
+#[cfg(unix)]
+fn get_bindings(pg_include: &str) -> bindgen::Builder {
+    bindgen::Builder::default()
+        .clang_arg(format!("-I{}", pg_include))
 }
 
 fn include_dir() -> Result<String, env::VarError> {
