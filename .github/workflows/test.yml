@@ -43,6 +43,14 @@ jobs:
       with:
         version: '0.24.2'
 
+    - name: target/postgres cache
+      uses: actions/cache@v1
+      with:
+        path: target/postgres
+        key: ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+
     - name: target/debug/deps cache
       uses: actions/cache@v1
       with:
@@ -51,14 +59,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.toml') }}
           ${{ runner.os }}-deps
-
-    - name: target/postgres cache
-      uses: actions/cache@v1
-      with:
-        path: target/postgres
-        key: ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
 
     - name: cargo make matrix.feature
       run: cargo make ${{ matrix.feature }}
@@ -90,6 +90,14 @@ jobs:
     - uses: davidB/rust-cargo-make@v1
       with:
         version: '0.24.2'
+
+    - name: target/postgres cache
+      uses: actions/cache@v1
+      with:
+        path: target/postgres
+        key: ${{ runner.os }}-postgres-v12-${{ hashFiles('**/Makefile.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-postgres-v12-${{ hashFiles('**/Makefile.toml') }}
 
     # Clippy
     - name: cargo make clippy

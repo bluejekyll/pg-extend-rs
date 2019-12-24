@@ -399,12 +399,13 @@ args = ["test", "--jobs=1", "--lib", "--examples", "--tests", "--bins", "@@remov
 
 [tasks.clippy]
 description = "Run the clippy linter on all crates"
-dependencies = ["clean"]
+dependencies = ["clean", "install-postgres"]
 command = "cargo"
 args = ["clippy", "--lib", "--examples", "--tests", "--bins", "--all-features", "--", "-D", "warnings"]
 
 [tasks.build-bench]
 description = "Check that all benchmarks compile"
+dependencies = ["clean", "install-postgres"]
 command = "cargo"
 toolchain = "nightly"
 args = ["bench", "--no-run"]
