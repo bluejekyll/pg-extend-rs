@@ -129,18 +129,19 @@ fi
 # build
 echo "Building ${PG_BUILD_DIR:?}"
 mkdir -p ${PG_BUILD_DIR:?}
-pushd ${PG_BUILD_DIR:?}
+
+current_dir=${PWD}
+cd ${PG_BUILD_DIR:?}
 
 bunzip2 -k -d -f ${PG_DL_PATH:?}
 PG_TAR_PATH="${PG_DL_DIR}/postgres_${PG_VERSION}.tar"
 tar -xf ${PG_TAR_PATH:?}
 
-pushd postgresql-${PG_VERSION}
+cd postgresql-${PG_VERSION}
 ./configure --prefix=${PG_INSTALL_DIR} --with-pgport=${PG_PORT} --enable-cassert
 make install
-popd # postgresql-${PG_VERSION}
-popd # ${PG_BUILD_DIR:?}
 
+cd ${current_dir:?}
 ${PG_BIN_DIR}/postgres --version
 
 rm -r ${PG_BUILD_DIR:?}
