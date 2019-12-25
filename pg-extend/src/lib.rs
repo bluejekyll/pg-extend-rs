@@ -142,7 +142,7 @@ unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_i
 }
 
 #[cfg(unix)]
-unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
+unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::__jmp_buf_tag, _value: ::std::os::raw::c_int) {
     pg_sys::siglongjmp(_buf, _value);
 }
 
