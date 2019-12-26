@@ -230,6 +230,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
         (server_opts, table_opts, table_name)
     }
 
+    // WARNING: this function expects a `List` from either `ForeignTable::options` or `ForeignServer::options`.
+    // Do not use for anything else as it assumes that the list contains elements that can be casted to `DefElem`
+    // whose `arg` param can be casted to a string `Value`
     unsafe fn get_options(options: *mut pg_sys::List) -> OptionMap {
         if options.is_null() {
             return HashMap::new();
