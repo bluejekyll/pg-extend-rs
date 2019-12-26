@@ -22,6 +22,17 @@ use crate::{error, pg_datum, pg_sys, pg_type, warn};
 /// preserved, it may be in the future.
 pub type Tuple<'mc> = HashMap<String, pg_datum::PgDatum<'mc>>;
 
+/// Struct used to wrap the FDW metadata
+#[derive(Debug)]
+pub struct ForeignTableMetadata {
+    /// Map that holds the options provided when creating the foreign server
+    pub server_opts: OptionMap,
+    /// Map that holds the options provided when creating the foreign table
+    pub table_opts: OptionMap,
+    /// Foreign table's name
+    pub table_name: String,
+}
+
 // TODO: can we avoid this box?
 /// The foreign data wrapper itself. The next() method of this object
 /// is responsible for creating row objects to return data.
@@ -31,16 +42,12 @@ pub trait ForeignData: Iterator<Item = Box<dyn ForeignRow>> {
     /// Called when a scan is initiated. Note that any heavy set up
     /// such as making connections or allocating memory should not
     /// happen in this step, but on the first call to next()
-    fn begin(server_opts: OptionMap, table_opts: OptionMap, table_name: String) -> Self;
+    fn begin(table_metadata: &ForeignTableMetadata) -> Self;
 
     /// If defined, these columns will always be present in the tuple. This can
     /// be useful for update and delete operations, which otherwise might be
     /// missing key fields.
-    fn index_columns(
-        _server_opts: OptionMap,
-        _table_opts: OptionMap,
-        _table_name: String,
-    ) -> Option<Vec<String>> {
+    fn index_columns(_table_metadata: &ForeignTableMetadata) -> Option<Vec<String>> {
         None
     }
 
@@ -192,9 +199,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _eflags: std::os::raw::c_int,
     ) {
         let rel = *(*node).ss.ss_currentRelation;
-        let (server_opts, table_opts, name) = Self::get_table_meta(&rel);
+        let table_metadata = Self::get_table_metadata(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts, name),
+            state: T::begin(&table_metadata),
         });
 
         (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
@@ -211,7 +218,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
         }
     }
 
-    unsafe fn get_table_meta(rel: &pg_sys::RelationData) -> (OptionMap, OptionMap, String) {
+    // TODO: We need a way to cache the resulting metadata to reduce the cost of this function
+    unsafe fn get_table_metadata(rel: &pg_sys::RelationData) -> ForeignTableMetadata {
         let table = pg_sys::GetForeignTable(rel.rd_id);
         let server = pg_sys::GetForeignServer((*table).serverid);
 
@@ -227,7 +235,11 @@ impl<T: ForeignData> ForeignWrapper<T> {
             }
         };
 
-        (server_opts, table_opts, table_name)
+        ForeignTableMetadata {
+            server_opts,
+            table_opts,
+            table_name,
+        }
     }
 
     // WARNING: this function expects a `List` from either `ForeignTable::options` or `ForeignServer::options`.
@@ -243,17 +255,20 @@ impl<T: ForeignData> ForeignWrapper<T> {
             let cell = pg_sys::list_nth_cell(options, i);
             let ptr_value = (*cell).data.ptr_value as *mut pg_sys::DefElem;
 
-            if let Ok(key) = CStr::from_ptr((*ptr_value).defname).to_str() {
-                let arg = (*((*ptr_value).arg as *mut pg_sys::Value)).val.str;
-                let value = match CStr::from_ptr(arg).to_str() {
-                    Ok(v) => v.into(),
-                    Err(err) => {
-                        error!("Unicode error {}", err);
-                        String::new()
-                    }
-                };
+            match CStr::from_ptr((*ptr_value).defname).to_str() {
+                Ok(key) => {
+                    let arg = (*((*ptr_value).arg as *mut pg_sys::Value)).val.str;
+                    let value = match CStr::from_ptr(arg).to_str() {
+                        Ok(v) => v.into(),
+                        Err(err) => {
+                            error!("Unicode error {}", err);
+                            String::new()
+                        }
+                    };
 
-                options_map.insert(key.into(), value);
+                    options_map.insert(key.into(), value);
+                }
+                Err(err) => error!("Unicode error {}", err)
             }
         }
 
@@ -391,9 +406,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _target_rte: *mut pg_sys::RangeTblEntry,
         target_relation: pg_sys::Relation,
     ) {
-        let (server_opts, table_opts, table_name) = Self::get_table_meta(&*target_relation);
+        let table_metadata = Self::get_table_metadata(&*target_relation);
 
-        if let Some(keys) = T::index_columns(server_opts, table_opts, table_name) {
+        if let Some(keys) = T::index_columns(&table_metadata) {
             // Build a map of column names to attributes and column index
             let attrs: HashMap<String, (&pg_sys::Form_pg_attribute, usize)> =
                 Self::tupdesc_attrs(&*(*target_relation).rd_att)
@@ -448,9 +463,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _eflags: i32,
     ) {
         let rel = *(*rinfo).ri_RelationDesc;
-        let (server_opts, table_opts, table_name) = Self::get_table_meta(&rel);
+        let table_metadata = Self::get_table_metadata(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts, table_name),
+            state: T::begin(&table_metadata),
         });
 
         (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
