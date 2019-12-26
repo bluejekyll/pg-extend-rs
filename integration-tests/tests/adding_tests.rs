@@ -4,11 +4,11 @@ use integration_tests::*;
 
 #[test]
 fn test_add_one() {
-    test_in_db("adding", |conn| {
+    test_in_db("adding", |mut conn| {
         let result = conn.query("SELECT add_one(1)", &[]).expect("query failed");
         assert_eq!(result.len(), 1);
 
-        let row = result.get(0);
+        let row = result.get(0).expect("no rows returned");
         let col: i32 = row.get(0);
 
         assert_eq!(col, 2);
@@ -19,7 +19,7 @@ fn test_add_one() {
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
-        let row = result.get(0);
+        let row = result.get(0).expect("no rows returned");
         let col: Option<i32> = row.get(0);
 
         assert_eq!(col, None);
@@ -28,14 +28,14 @@ fn test_add_one() {
 
 #[test]
 fn test_add_one_null() {
-    test_in_db("adding", |conn| {
+    test_in_db("adding", |mut conn| {
         // Rust add_big_one function should not be called because we declare it STRICT.
         let result = conn
             .query("SELECT add_big_one(CAST(NULL as int8))", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
-        let row = result.get(0);
+        let row = result.get(0).expect("no rows returned");
         let col: Option<i64> = row.get(0);
 
         assert_eq!(col, None);
@@ -44,13 +44,13 @@ fn test_add_one_null() {
 
 #[test]
 fn test_add_small_one() {
-    test_in_db("adding", |conn| {
+    test_in_db("adding", |mut conn| {
         let result = conn
             .query("SELECT add_small_one(CAST(1 as int2))", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
-        let row = result.get(0);
+        let row = result.get(0).expect("no rows returned");
         let col: i16 = row.get(0);
 
         assert_eq!(col, 2);
@@ -59,13 +59,13 @@ fn test_add_small_one() {
 
 #[test]
 fn test_add_big_one() {
-    test_in_db("adding", |conn| {
+    test_in_db("adding", |mut conn| {
         let result = conn
             .query("SELECT add_big_one(CAST(1 as int8))", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
-        let row = result.get(0);
+        let row = result.get(0).expect("no rows returned");
         let col: i64 = row.get(0);
 
         assert_eq!(col, 2);
@@ -74,7 +74,7 @@ fn test_add_big_one() {
 
 #[test]
 fn test_add_together() {
-    test_in_db("adding", |conn| {
+    test_in_db("adding", |mut conn| {
         let result = conn
             .query(
                 "SELECT add_together(CAST(1 as int8), CAST(2 as int4), CAST(3 as int2))",
@@ -83,7 +83,7 @@ fn test_add_together() {
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
-        let row = result.get(0);
+        let row = result.get(0).expect("no rows returned");
         let col: i64 = row.get(0);
 
         assert_eq!(col, 6);

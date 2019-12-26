@@ -18,6 +18,7 @@ fn main() {
 
     // Re-run this if wrapper.h changes
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=pg_majorversion.h");
     println!("cargo:rerun-if-env-changed=PG_INCLUDE_PATH");
 
     let pg_include = include_dir()

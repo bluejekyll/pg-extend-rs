@@ -136,14 +136,20 @@ pub fn register_panic_handler() {
     }));
 }
 
-#[cfg(windows)]
-unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
-    pg_sys::longjmp(_buf, _value);
-}
-
-#[cfg(unix)]
-unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::__jmp_buf_tag, _value: ::std::os::raw::c_int) {
-    pg_sys::siglongjmp(_buf, _value);
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
+            pg_sys::longjmp(_buf, _value);
+        }
+    } else if #[cfg(target_os = "macos")] {
+        unsafe fn pg_sys_longjmp(_buf: *mut c_int, _value: ::std::os::raw::c_int) {
+            pg_sys::siglongjmp(_buf, _value);
+        }
+    } else if #[cfg(unix)] {
+        unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::__jmp_buf_tag, _value: ::std::os::raw::c_int) {
+            pg_sys::siglongjmp(_buf, _value);
+        }
+    }
 }
 
 /// Provides a barrier between Rust and Postgres' usage of the C set/longjmp

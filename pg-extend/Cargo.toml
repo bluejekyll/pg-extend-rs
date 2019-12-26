@@ -25,7 +25,8 @@ postgres-11 = []
 postgres-12 = []
 
 [dependencies]
+cfg-if = "0.1.10"
 
 [build-dependencies]
-bindgen = "0.48"
-clang = "0.21"
+bindgen = "0.52"
+clang = "0.23"
