@@ -358,8 +358,19 @@ description = "Remove only the current workspace member"
 command = "cargo"
 args = ["clean", "-p", "${CARGO_MAKE_CRATE_NAME}"]
 
+[tasks.clean-build]
+description = "Remove only the current workspace member"
+workspace = false
+script_runner = "@shell"
+script = [
+'''
+rm -rf ${TARGET_DIR:?}/debug
+'''
+]
+
 [tasks.clean-all]
 description = "Remove only the current workspace member"
+workspace = false
 script_runner = "@shell"
 script = [
 '''
@@ -440,14 +451,15 @@ run_task = { name = "all", fork = true }
 description = "Run all with --no-default-features"
 dependencies = ["install-openssl"]
 workspace = false
-env = { FEATURES = "--no-default-features", CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = "tests/compatibility-tests" }
+env = { FEATURES = "--no-default-features" }
 run_task = { name = "all", fork = true }
 
 [tasks.all-features]
 description = "Run all with --all-features"
 dependencies = ["install-openssl"]
 workspace = false
-env = { FEATURES = "--all-features" }
+# can't currently test --all-features on pg-extend because it would enable all versions, which won't compile
+env = { FEATURES = "--all-features", CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = "pg-extend" }
 run_task = { name = "all", fork = true }
 
 ##

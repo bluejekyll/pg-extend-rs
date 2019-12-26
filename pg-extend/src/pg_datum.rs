@@ -25,6 +25,7 @@ pub struct PgDatum<'mc>(Option<Datum>, PhantomData<NonNull<&'mc PgAllocator>>);
 
 impl<'mc> PgDatum<'mc> {
     /// Returns a new PgDatum wrapper for Datatypes used by Postgres.
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn from_raw<B: Into<pg_bool::Bool>>(
         _memory_context: &'mc PgAllocator,
         datum: Datum,
@@ -36,6 +37,7 @@ impl<'mc> PgDatum<'mc> {
     }
 
     /// Returns a new PgDatum wrapper if you already have Option<Datum>
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn from_option(
         _memory_context: &'mc PgAllocator,
         datum: Option<Datum>,
@@ -59,6 +61,7 @@ impl<'mc> PgDatum<'mc> {
     ///
     /// This must not panic, this is called directly at the FFI boundary with Postgres, if it panics it will cause
     ///    the full Postgres DB to restart and enter recovery mode.
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn into_datum(self) -> Datum {
         match self.0 {
             Some(datum) => datum,

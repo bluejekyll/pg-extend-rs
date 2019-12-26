@@ -110,6 +110,8 @@ jobs:
   cleanliness:
     name: cleanliness
     runs-on: ubuntu-latest
+    env:
+      version: v11
     steps:
     - uses: actions/checkout@v1
 
@@ -138,16 +140,16 @@ jobs:
       uses: actions/cache@v1
       with:
         path: target/postgres
-        key: ${{ runner.os }}-postgres-v12-${{ hashFiles('**/Makefile.toml') }}
+        key: ${{ runner.os }}-postgres-${{ env.version }}-${{ hashFiles('**/Makefile.toml') }}
         restore-keys: |
-          ${{ runner.os }}-postgres-v12-${{ hashFiles('**/Makefile.toml') }}
+          ${{ runner.os }}-postgres-${{ env.version }}-${{ hashFiles('**/Makefile.toml') }}
 
     # Clippy
-    - name: cargo make clippy
-      run: cargo make clippy
+    - name: cargo make clippy -p ${{ env.version }}
+      run: cargo make clippy -p ${{ env.version }}
     # Rustfmt
-    - name: cargo make fmt
-      run: cargo make fmt
+    - name: cargo make fmt -p ${{ env.version }}
+      run: cargo make fmt -p ${{ env.version }}
     # Audit
-    - name: cargo audit
-      run: cargo make audit
+    - name: cargo audit -p ${{ env.version }}
+      run: cargo make audit -p ${{ env.version }}

@@ -134,10 +134,28 @@ pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
         );
     }
 
+    let attempts = 3;
     let sql = String::from_utf8_lossy(&sql.stdout);
-    let mut conn = db_conn();
     println!("executing stmts: {}", sql);
-    conn.batch_execute(&sql).expect("failed to create function");
+
+    // Try three times
+    let mut error = None;
+    for _ in 0..attempts {
+        let mut conn = db_conn();
+        let result = conn.batch_execute(&sql);
+
+        if let Err(err) = result {
+            error = Some(err);
+        } else {
+            return;
+        }
+    }
+
+    panic!(
+        "Error creating funtion(s) after {} attempts: {}",
+        attempts,
+        error.expect("error should have been set in above loop")
+    );
 }
 
 pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
