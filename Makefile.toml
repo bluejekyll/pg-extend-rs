@@ -106,7 +106,6 @@ Invoke-WebRequest "https://curl.haxx.se/ca/cacert.pem" -O "${env:OPENSSL_DIR}\ca
 [tasks.install-postgres]
 workspace = false
 description = "Installs Postgres"
-windows_alias = "empty"
 script_runner = "@shell"
 script = [
 '''
