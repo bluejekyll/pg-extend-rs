@@ -19,11 +19,13 @@ pub struct Text<'mc>(PgAllocated<'mc, NonNull<pg_sys::text>>);
 
 impl<'mc> Text<'mc> {
     /// Create from the raw pointer to the Postgres data
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn from_raw(alloc: &'mc PgAllocator, text_ptr: *mut pg_sys::text) -> Self {
         Text(PgAllocated::from_raw(alloc, text_ptr))
     }
 
     /// Convert into the underlying pointer
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn into_ptr(mut self) -> *mut pg_sys::text {
         self.0.take_ptr()
     }

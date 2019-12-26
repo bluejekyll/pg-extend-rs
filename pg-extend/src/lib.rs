@@ -136,14 +136,20 @@ pub fn register_panic_handler() {
     }));
 }
 
-#[cfg(windows)]
-unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
-    pg_sys::longjmp(_buf, _value);
-}
-
-#[cfg(unix)]
-unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::__jmp_buf_tag, _value: ::std::os::raw::c_int) {
-    pg_sys::siglongjmp(_buf, _value);
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::_JBTYPE, _value: ::std::os::raw::c_int) {
+            pg_sys::longjmp(_buf, _value);
+        }
+    } else if #[cfg(target_os = "macos")] {
+        unsafe fn pg_sys_longjmp(_buf: *mut c_int, _value: ::std::os::raw::c_int) {
+            pg_sys::siglongjmp(_buf, _value);
+        }
+    } else if #[cfg(unix)] {
+        unsafe fn pg_sys_longjmp(_buf: *mut pg_sys::__jmp_buf_tag, _value: ::std::os::raw::c_int) {
+            pg_sys::siglongjmp(_buf, _value);
+        }
+    }
 }
 
 /// Provides a barrier between Rust and Postgres' usage of the C set/longjmp
@@ -203,8 +209,7 @@ pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
 pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     // setup the check protection
     let original_exception_stack: *mut pg_sys::jmp_buf = pg_sys::PG_exception_stack;
-    let mut local_exception_stack: mem::MaybeUninit<pg_sys::jmp_buf> =
-        mem::MaybeUninit::uninit();
+    let mut local_exception_stack: mem::MaybeUninit<pg_sys::jmp_buf> = mem::MaybeUninit::uninit();
     let jumped = pg_sys::_setjmp(
         // grab a mutable reference, cast to a mutabl pointr, then case to the expected erased pointer type
         local_exception_stack.as_mut_ptr() as *mut pg_sys::jmp_buf as *mut _,

@@ -1,0 +1,17 @@
+[config]
+skip_core_tasks = true
+
+[config.modify_core_tasks]
+# if true, all core tasks are set to private (default false)
+private = true
+
+## Feature profiles
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
+TDNS_WITH_KCOV_ARGS = "--bins --tests --examples"
+
+[tasks.clippy]
+description = "Run the clippy linter on all crates"
+dependencies = ["clean", "install-postgres"]
+command = "cargo"
+args = ["clippy", "--lib", "--examples", "--tests", "--bins", "--features=fdw", "--", "-D", "warnings"]
