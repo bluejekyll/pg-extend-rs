@@ -9,7 +9,7 @@ use std::process;
 
 use cargo::core::compiler::{Compilation, CompileMode};
 use cargo::util::errors::CargoResult;
-use postgres::Connection;
+use postgres::{Client, NoTls};
 
 pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     println!("building library: {}", name);
@@ -101,9 +101,10 @@ fn get_stmt_bin_path(result: &Compilation) -> PathBuf {
     result.binaries[0].clone()
 }
 
-pub fn db_conn() -> Connection {
+pub fn db_conn() -> Client {
     if let Ok(url) = env::var("POSTGRES_URL") {
-        return Connection::connect(url, postgres::TlsMode::None).expect("could not connect");
+        println!("executing on connection: {}", url);
+        return Client::connect(&url, postgres::NoTls).expect("could not connect");
     }
 
     let db_name = env::var("POSTGRES_TEST_DB").expect(
@@ -116,7 +117,8 @@ pub fn db_conn() -> Connection {
         env::var("POSTGRES_USER").unwrap_or_else(|_| env::var("USER").expect("USER is unset"));
     let conn_str = format!("postgres://{}@{}:{}/{}", user, host, port, db_name);
 
-    Connection::connect(&conn_str as &str, postgres::TlsMode::None).expect("could not connect")
+    println!("executing on connection: {}", conn_str);
+    Client::connect(&conn_str as &str, NoTls).expect("could not connect")
 }
 
 pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
@@ -133,7 +135,7 @@ pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
     }
 
     let sql = String::from_utf8_lossy(&sql.stdout);
-    let conn = db_conn();
+    let mut conn = db_conn();
     println!("executing stmts: {}", sql);
     conn.batch_execute(&sql).expect("failed to create function");
 }
@@ -158,7 +160,10 @@ pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
     tmplib
 }
 
-pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, test: F) {
+pub fn test_in_db<F: FnOnce(Client) + UnwindSafe>(lib_name: &str, test: F) {
+    // FIXME: this sleep helps all the tests pass
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
     println!("test_in_db: {}", lib_name);
     let bin_path = build_bin(lib_name).expect("failed to build stmt binary");
     assert!(bin_path.exists());
@@ -173,7 +178,6 @@ pub fn test_in_db<F: FnOnce(Connection) + UnwindSafe>(lib_name: &str, test: F) {
 
     let panic_result = panic::catch_unwind(|| {
         let conn = db_conn();
-        println!("executing on connection: {:?}", conn);
         test(conn)
     });
 

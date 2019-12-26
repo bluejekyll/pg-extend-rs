@@ -445,7 +445,6 @@ run_task = { name = "all", fork = true }
 
 [tasks.all-features]
 description = "Run all with --all-features"
-condition = { profiles = ["v12"] } # fdw only works on postgres 12 atm
 dependencies = ["install-openssl"]
 workspace = false
 env = { FEATURES = "--all-features" }
