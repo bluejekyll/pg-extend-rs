@@ -1,5 +1,5 @@
 
-[![Build Status](https://travis-ci.org/bluejekyll/pg-extend-rs.svg?branch=master)](https://travis-ci.org/bluejekyll/pg-extend-rs)
+[![Build Status](https://github.com/bluejekyll/pg-extend-rs/workflows/test/badge.svg?branch=master)](https://github.com/bluejekyll/pg-extend-rs/actions?query=workflow%3Atest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](LICENSE-APACHE)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=bluejekyll/pg-extend-rs)](https://dependabot.com)
