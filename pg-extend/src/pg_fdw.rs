@@ -191,13 +191,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
         node: *mut pg_sys::ForeignScanState,
         _eflags: std::os::raw::c_int,
     ) {
-        // TODO: real server options
-        let server_opts = HashMap::new();
-        // TODO: real table options
-        let table_opts = HashMap::new();
-
         let rel = *(*node).ss.ss_currentRelation;
-        let name = Self::get_table_name(&rel);
+        let (server_opts, table_opts, name) = Self::get_table_meta(&rel);
         let wrapper = Box::new(Self {
             state: T::begin(server_opts, table_opts, name),
         });
@@ -216,18 +211,50 @@ impl<T: ForeignData> ForeignWrapper<T> {
         }
     }
 
-    unsafe fn get_table_name(rel: &pg_sys::RelationData) -> String {
+    unsafe fn get_table_meta(rel: &pg_sys::RelationData) -> (OptionMap, OptionMap, String) {
         let table = pg_sys::GetForeignTable(rel.rd_id);
+        let server = pg_sys::GetForeignServer((*table).serverid);
+
+        let server_opts = Self::get_options((*server).options);
+        let table_opts = Self::get_options((*table).options);
         let raw_name = pg_sys::get_rel_name((*table).relid);
 
-        let cname = std::ffi::CStr::from_ptr(raw_name);
-        match cname.to_str() {
+        let table_name = match CStr::from_ptr(raw_name).to_str() {
             Ok(name) => name.into(),
             Err(err) => {
                 error!("Unicode error {}", err);
                 String::new()
             }
+        };
+
+        (server_opts, table_opts, table_name)
+    }
+
+    unsafe fn get_options(options: *mut pg_sys::List) -> OptionMap {
+        if options.is_null() {
+            return HashMap::new();
         }
+
+        let mut options_map = HashMap::new();
+        for i in 0..((*options).length) {
+            let cell = pg_sys::list_nth_cell(options, i);
+            let ptr_value = (*cell).data.ptr_value as *mut pg_sys::DefElem;
+
+            if let Ok(key) = CStr::from_ptr((*ptr_value).defname).to_str() {
+                let arg = (*((*ptr_value).arg as *mut pg_sys::Value)).val.str;
+                let value = match CStr::from_ptr(arg).to_str() {
+                    Ok(v) => v.into(),
+                    Err(err) => {
+                        error!("Unicode error {}", err);
+                        String::new()
+                    }
+                };
+
+                options_map.insert(key.into(), value);
+            }
+        }
+
+        options_map
     }
 
     fn get_field<'mc>(
@@ -361,12 +388,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _target_rte: *mut pg_sys::RangeTblEntry,
         target_relation: pg_sys::Relation,
     ) {
-        // TODO: real server options
-        let server_opts = HashMap::new();
-        // TODO: real table options
-        let table_opts = HashMap::new();
-
-        let table_name = Self::get_table_name(&*target_relation);
+        let (server_opts, table_opts, table_name) = Self::get_table_meta(&*target_relation);
 
         if let Some(keys) = T::index_columns(server_opts, table_opts, table_name) {
             // Build a map of column names to attributes and column index
@@ -422,15 +444,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _subplan_index: i32,
         _eflags: i32,
     ) {
-        // TODO: real server options
-        let server_opts = HashMap::new();
-        // TODO: real table options
-        let table_opts = HashMap::new();
-
         let rel = *(*rinfo).ri_RelationDesc;
-        let name = Self::get_table_name(&rel);
+        let (server_opts, table_opts, table_name) = Self::get_table_meta(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts, name),
+            state: T::begin(server_opts, table_opts, table_name),
         });
 
         (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;
