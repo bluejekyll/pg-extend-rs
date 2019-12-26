@@ -203,8 +203,7 @@ pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
 pub(crate) unsafe fn guard_pg<R, F: FnOnce() -> R>(f: F) -> R {
     // setup the check protection
     let original_exception_stack: *mut pg_sys::jmp_buf = pg_sys::PG_exception_stack;
-    let mut local_exception_stack: mem::MaybeUninit<pg_sys::jmp_buf> =
-        mem::MaybeUninit::uninit();
+    let mut local_exception_stack: mem::MaybeUninit<pg_sys::jmp_buf> = mem::MaybeUninit::uninit();
     let jumped = pg_sys::_setjmp(
         // grab a mutable reference, cast to a mutabl pointr, then case to the expected erased pointer type
         local_exception_stack.as_mut_ptr() as *mut pg_sys::jmp_buf as *mut _,

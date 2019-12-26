@@ -112,7 +112,6 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
         .whitelist_var("INDEX_MAX_KEYS")
         .whitelist_var("NAMEDATALEN")
         .whitelist_var("USE_FLOAT.*")
-
         // FDW whitelisting
         .whitelist_function("pstrdup")
         .whitelist_function("lappend")
@@ -151,8 +150,7 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
 
 #[cfg(unix)]
 fn get_bindings(pg_include: &str) -> bindgen::Builder {
-    bindgen::Builder::default()
-        .clang_arg(format!("-I{}", pg_include))
+    bindgen::Builder::default().clang_arg(format!("-I{}", pg_include))
 }
 
 fn include_dir() -> Result<String, env::VarError> {

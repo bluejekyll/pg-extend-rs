@@ -268,7 +268,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
                     options_map.insert(key.into(), value);
                 }
-                Err(err) => error!("Unicode error {}", err)
+                Err(err) => error!("Unicode error {}", err),
             }
         }
 
