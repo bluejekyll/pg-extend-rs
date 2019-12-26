@@ -4,7 +4,7 @@ use integration_tests::*;
 
 #[test]
 fn test_panicking() {
-    test_in_db("panicking", |conn| {
+    test_in_db("panicking", |mut conn| {
         let result = conn.query("SELECT panicking(1)", &[]);
         assert!(result.is_err());
     });
@@ -12,7 +12,7 @@ fn test_panicking() {
 
 #[test]
 fn test_longjmping() {
-    test_in_db("panicking", |conn| {
+    test_in_db("panicking", |mut conn| {
         let result = conn.query("SELECT longjmping(3)", &[]);
         assert!(result.is_err());
     });
