@@ -250,8 +250,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         let mut options_map = HashMap::new();
         for i in 0..((*options).length) {
-            let cell = pg_sys::list_nth_cell(options, i);
-            let ptr_value = (*cell).data.ptr_value as *mut pg_sys::DefElem;
+            let ptr_value = pg_sys::list_nth(options, i) as *mut pg_sys::DefElem;
 
             match CStr::from_ptr((*ptr_value).defname).to_str() {
                 Ok(key) => {
@@ -290,7 +289,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     fn tts_to_hashmap<'mc>(
         memory_context: &'mc PgAllocator,
         slot: *mut pg_sys::TupleTableSlot,
-        tupledesc: &pg_sys::TupleDesc,
+        tupledesc: &pg_sys::tupleDesc,
     ) -> Tuple<'mc> {
         let attrs = unsafe { Self::tupdesc_attrs(tupledesc) };
 
