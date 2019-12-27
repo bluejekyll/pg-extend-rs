@@ -10,6 +10,9 @@
 [config]
 skip_core_tasks = true
 
+# Default to v12
+additional_profiles = ["v12"]
+
 [config.modify_core_tasks]
 # if true, all core tasks are set to private (default false)
 private = true
@@ -23,22 +26,11 @@ CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY = "${TARGET_DIR}/kcov"
 CARGO_MAKE_KCOV_DOWNLOAD_DIRECTORY = "${TARGET_DIR}/kcov-dl"
 CARGO_MAKE_KCOV_VERSION = "37"
 
-# This should match the 12.1 settings
-PG_VERSION = "12.1"
-PG_PORT = "5444"
-
-PG_DIR = "${TARGET_DIR}/postgres"
-PG_DL_DIR = "${PG_DIR}"
-PG_BUILD_DIR = "${PG_DIR}/postgres_build_${PG_VERSION}"
-PG_INSTALL_DIR = "${PG_DIR}/postgres_${PG_VERSION}"
-PG_BIN_DIR = "${PG_INSTALL_DIR}/bin"
-PG_DB_DIR = "${TARGET_DIR}/postgres_db_${PG_VERSION}"
-POSTGRES_TEST_DB = "pg_extend_rs_test_db"
-PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
-
-PATH = "${PG_BIN_DIR}:${PATH}"
+# This can be overriden (e.g. in pg-extend crate) to specify a more limited set of features
+ALL_FEATURES = "--all-features"
 
 [env.v10]
+VER_FEATURES = "--features=postgres-10"
 PG_VERSION = "10.11"
 PG_PORT = "5442" # port is incremented by the major version, 5432 + ${PG_VERSION}
 
@@ -54,6 +46,7 @@ PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
 PATH = "${PG_BIN_DIR}:${PATH}"
 
 [env.v11]
+VER_FEATURES = "--features=postgres-11"
 PG_VERSION = "11.6"
 PG_PORT = "5443" # port is incremented by the major version, 5432 + ${PG_VERSION}
 
@@ -69,6 +62,7 @@ PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
 PATH = "${PG_BIN_DIR}:${PATH}"
 
 [env.v12]
+VER_FEATURES = "--features=postgres-12"
 PG_VERSION = "12.1"
 PG_PORT = "5444" # port is incremented by the major version, 5432 + ${PG_VERSION}
 
@@ -163,76 +157,6 @@ workspace = false
 condition_script = ["if cargo with --version ; then exit 1 ; else exit 0 ; fi"]
 command = "cargo"
 args = ["install", "cargo-with", "--git=https://github.com/bluejekyll/cargo-with.git", "--branch=master"]
-
-[tasks.install-kcov]
-description = "Installs the kcov coverage tool"
-workspace = false
-script_runner = "bash"
-install_script = [
-'''
-KCOV_INSTALLATION_DIRECTORY=""
-KCOV_BINARY_DIRECTORY=""
-if [ -n "${CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY}" ]; then
-    mkdir -p ${CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY}
-    cd ${CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY}
-    KCOV_INSTALLATION_DIRECTORY="$(pwd)/"
-    cd -
-    echo "Kcov Installation Directory: ${KCOV_INSTALLATION_DIRECTORY}"
-    KCOV_BINARY_DIRECTORY="${KCOV_INSTALLATION_DIRECTORY}/build/src/"
-    echo "Kcov Binary Directory: ${KCOV_BINARY_DIRECTORY}"
-fi
-
-if ${KCOV_BINARY_DIRECTORY}kcov --version ; then exit 0 ; fi
-
-# get help info to fetch all supported command line arguments
-KCOV_HELP_INFO=`${KCOV_BINARY_DIRECTORY}kcov --help` || true
-
-# check needed arguments are supported, else install
-if [[ $KCOV_HELP_INFO != *"--include-pattern"* ]] || [[ $KCOV_HELP_INFO != *"--exclude-line"* ]] || [[ $KCOV_HELP_INFO != *"--exclude-region"* ]]; then
-    # check we are on a supported platform
-    if [ "$(uname)" == "Linux" ]; then
-        if [ "$(grep -Ei 'debian|buntu|mint' /etc/*release)" ]; then
-            echo "Installing/Upgrading kcov..."
-            sudo apt-get update || true
-            sudo apt-get install -y libcurl4-openssl-dev libelf-dev libdw-dev cmake gcc binutils-dev
-        fi
-    elif [ "$(uname)" == "Darwin" ]; then
-        for brew_install in zlib bash cmake pkgconfig wget ; do
-            if brew info ${brew_install} | grep "Not installed" ; then
-                brew install ${brew_install}
-            else 
-                echo "skipping ${brew_install} already installed"
-            fi
-        done
-    fi
-
-    mkdir -p ${CARGO_MAKE_KCOV_DOWNLOAD_DIRECTORY}
-    cd ${CARGO_MAKE_KCOV_DOWNLOAD_DIRECTORY}
-    KCOV_DOWNLOAD_DIRECTORY=$(pwd)
-
-    rm -rf kcov-${CARGO_MAKE_KCOV_VERSION:?}
-    rm -f v${CARGO_MAKE_KCOV_VERSION}.zip
-
-    wget https://github.com/SimonKagstrom/kcov/archive/v${CARGO_MAKE_KCOV_VERSION}.zip
-    unzip v${CARGO_MAKE_KCOV_VERSION}.zip
-    cd kcov-${CARGO_MAKE_KCOV_VERSION}
-    mkdir -p build
-    cd ./build
-    cmake ..
-    make
-
-    # if custom installation directory, leave kcov as local
-    if [ -n "${CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY}" ]; then
-        cd ${KCOV_DOWNLOAD_DIRECTORY}/kcov-${CARGO_MAKE_KCOV_VERSION}
-        mv ./* ${KCOV_INSTALLATION_DIRECTORY}
-    else
-        sudo make install
-        cd ../..
-        rm -rf kcov-${CARGO_MAKE_KCOV_VERSION}
-    fi
-fi
-'''
-]
 
 ##
 ## Postgres operations
@@ -412,7 +336,7 @@ args = ["test", "--jobs=1", "--lib", "--examples", "--tests", "--bins", "@@remov
 description = "Run the clippy linter on all crates"
 dependencies = ["clean", "install-postgres"]
 command = "cargo"
-args = ["clippy", "--lib", "--examples", "--tests", "--bins", "--all-features", "--", "-D", "warnings"]
+args = ["clippy", "--lib", "--examples", "--tests", "--bins", "${ALL_FEATURES}", "--", "-D", "warnings"]
 
 [tasks.build-bench]
 description = "Check that all benchmarks compile"
@@ -443,101 +367,20 @@ run_task = "all"
 [tasks.default-features]
 description = "Run all with default features"
 dependencies = ["install-openssl"]
-workspace = false
 env = { FEATURES = "" }
 run_task = { name = "all", fork = true }
 
 [tasks.no-default-features]
 description = "Run all with --no-default-features"
 dependencies = ["install-openssl"]
-workspace = false
 env = { FEATURES = "--no-default-features" }
 run_task = { name = "all", fork = true }
 
 [tasks.all-features]
 description = "Run all with --all-features"
 dependencies = ["install-openssl"]
-workspace = false
-# can't currently test --all-features on pg-extend because it would enable all versions, which won't compile
-env = { FEATURES = "--all-features", CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = "pg-extend" }
+env = { FEATURES = "${ALL_FEATURES}" }
 run_task = { name = "all", fork = true }
-
-##
-## Coverage
-##
-
-[tasks.coverage-kcov]
-description = "Installs (if missing) and runs coverage using kcov (not supported on windows)"
-windows_alias = "empty"
-mac_alias = "empty" # TODO: mac works, but is so slow it hangs on some tests...
-dependencies = ["install-with", "install-kcov"]
-script_runner = "bash"
-env = { CARGO_MAKE_KCOV_INCLUDE_PATTERN = "${CARGO_MAKE_WORKING_DIRECTORY}/src/", CARGO_MAKE_COVERAGE_REPORT_DIRECTORY = "${TARGET_DIR}/coverage", CARGO_MAKE_WITH_KCOV_ARGS = "${TDNS_WITH_KCOV_ARGS}" }
-script = [
-'''
-set -e
-
-echo "Working Directory: ${CARGO_MAKE_WORKING_DIRECTORY}"
-
-KCOV_BINARY_DIRECTORY=""
-if [ -n "${CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY}" ]; then
-    cd ${CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY}
-    KCOV_INSTALLATION_DIRECTORY="$(pwd)/"
-    cd -
-    echo "Kcov Installation Directory: ${KCOV_INSTALLATION_DIRECTORY}"
-    KCOV_BINARY_DIRECTORY="${KCOV_INSTALLATION_DIRECTORY}/build/src/"
-    echo "Kcov Binary Directory: ${KCOV_BINARY_DIRECTORY}"
-fi
-
-TARGET_DIRECTORY="target/coverage/${CARGO_MAKE_CRATE_FS_NAME}"
-if [ -n "$CARGO_MAKE_COVERAGE_REPORT_DIRECTORY" ]; then
-    TARGET_DIRECTORY="$CARGO_MAKE_COVERAGE_REPORT_DIRECTORY/${CARGO_MAKE_CRATE_FS_NAME}"
-    mkdir -p ${TARGET_DIRECTORY}
-else
-    mkdir -p ${TARGET_DIRECTORY}
-fi
-
-BINARY_DIRECTORY=target/debug
-if [ -n "$CARGO_MAKE_WORKSPACE_TARGET_DIRECTORY" ]; then
-    BINARY_DIRECTORY="${CARGO_MAKE_WORKSPACE_TARGET_DIRECTORY}/debug"
-fi
-
-KCOV_EXCLUDE_LINE_ARG=""
-if [ -n "$CARGO_MAKE_KCOV_EXCLUDE_LINE" ]; then
-    KCOV_EXCLUDE_LINE_ARG="--exclude-line=${CARGO_MAKE_KCOV_EXCLUDE_LINE}"
-fi
-
-KCOV_EXCLUDE_REGION_ARG=""
-if [ -n "$CARGO_MAKE_KCOV_EXCLUDE_REGION" ]; then
-    KCOV_EXCLUDE_REGION_ARG="--exclude-region=${CARGO_MAKE_KCOV_EXCLUDE_REGION}"
-fi
-
-cd ${CARGO_MAKE_WORKING_DIRECTORY}
-echo "Working director: ${PWD}"
-echo "Running tests from directory: ${BINARY_DIRECTORY}"
-
-# Evaluate variables that may be in the expression
-# This allows us to do double expansion on a non-variable second expansion
-CARGO_MAKE_TEST_COVERAGE_BINARY_FILTER_REGEX="$(sh -c "echo \"${CARGO_MAKE_TEST_COVERAGE_BINARY_FILTER}\"")"
-echo "Test binary filter regex: ${CARGO_MAKE_TEST_COVERAGE_BINARY_FILTER_REGEX}"
-
-## Setup the env for the kcov script
-KCOV=${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY:?}/scripts/kcov.sh
-
-export KCOV_BINARY=${KCOV_BINARY_DIRECTORY:?}/kcov
-export KCOV_TARGET_DIRECTORY=${TARGET_DIRECTORY:?}
-export KCOV_INCLUDE_PATTERN=${CARGO_MAKE_KCOV_INCLUDE_PATTERN:?}
-export KCOV_EXCLUDE_LINE_ARG
-export KCOV_EXCLUDE_REGION_ARG
-
-echo "Running coverage for ${CARGO_MAKE_CRATE_FS_NAME} ${CARGO_MAKE_WITH_KCOV_ARGS} ${FEATURES}"
-cargo with "${KCOV:?} {bin} {args}" -- test ${CARGO_MAKE_WITH_KCOV_ARGS} ${FEATURES} || true
-'''
-]
-
-[tasks.coverage]
-description = "Run coverage reports on all crates"
-run_task = "coverage-kcov"
 
 ##
 ## publishing
