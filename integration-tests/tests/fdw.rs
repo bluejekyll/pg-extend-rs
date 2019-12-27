@@ -5,13 +5,12 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-// FDW tests disabled because it's broken with PostgreSQL 11+.
-// See See https://github.com/bluejekyll/pg-extend-rs/issues/49
-
 extern crate integration_tests;
 
 use integration_tests::*;
 
+// FDW tests disabled because it's broken with PostgreSQL 11+.
+// See See https://github.com/bluejekyll/pg-extend-rs/issues/49
 #[test]
 #[ignore] // this test is currently broken
 fn test_fdw() {

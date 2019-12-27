@@ -254,6 +254,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
             match CStr::from_ptr((*ptr_value).defname).to_str() {
                 Ok(key) => {
+                    #[allow(clippy::cast_ptr_alignment)]
                     let arg = (*((*ptr_value).arg as *mut pg_sys::Value)).val.str;
                     let value = match CStr::from_ptr(arg).to_str() {
                         Ok(v) => v.into(),

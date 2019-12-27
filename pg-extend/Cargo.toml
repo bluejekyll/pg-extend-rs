@@ -21,7 +21,6 @@ default = []
 
 # Enable Foreign Data wrappers support
 fdw = []
-
 # We use feature flags to dictate which sets of PG features we support.
 #   The build.rs script will set a feature flag rustc, but this does not enable the dependencies.
 #   For that, build scripts that want to explcitly enable supported features in each
