@@ -290,12 +290,16 @@ dependencies = ["install-postgres"]
 command = "cargo"
 args = ["build", "--lib", "--bins",  "@@remove-empty(FEATURES)"]
 
-[tasks.test]
-description = "Run tests all the crates"
+[tasks.test-inner]
+description = "Run tests on all the crates, without restarting PG"
 dependencies = ["pg-create-db"]
 env = { POSTGRES_PORT = "${PG_PORT}" }
 command = "cargo"
 args = ["test", "--jobs=1", "--lib", "--examples", "--tests", "--bins", "@@remove-empty(FEATURES)"]
+
+[tasks.test]
+description = "Run tests on all the crates, restarts and stops PG"
+dependencies = ["pg-stop", "pg-start", "test-inner", "pg-stop"]
 
 [tasks.clippy]
 description = "Run the clippy linter on all crates"
