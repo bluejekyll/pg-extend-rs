@@ -131,7 +131,7 @@ args = ["install", "cargo-with", "--git=https://github.com/bluejekyll/cargo-with
 [tasks.pg-init-db-dir]
 description = "Creates the test DB used by the integration tests"
 workspace = false
-condition = { files_not_exist = ["${PG_DB_DIR}"] }
+condition = { files_not_exist = ["${PG_DB_DIR}/pg_wal"] }
 dependencies = ["install-postgres"]
 script_runner = "@shell"
 script = [
@@ -139,6 +139,7 @@ script = [
 set -e
 
 echo "Intializing postgres db ${PG_DB_DIR:?}"
+rm -rf ${PG_DB_DIR:?}
 mkdir -p ${PG_DB_DIR:?}
 ${PG_BIN_DIR}/pg_ctl init -D ${PG_DB_DIR:?} -l ${PG_LOGPATH}
 '''
@@ -264,6 +265,16 @@ rm -rf ${TARGET_DIR:?}/debug
 '''
 ]
 
+[tasks.clean-db]
+description = "Removes the DB directory"
+workspace = false
+script_runner = "@shell"
+script = [
+'''
+rm -rf ${PG_DB_DIR:?}
+'''
+]
+
 [tasks.clean-all]
 description = "Remove only the current workspace member"
 workspace = false
@@ -297,16 +308,10 @@ dependencies = ["install-postgres"]
 command = "cargo"
 args = ["build", "--lib", "--bins",  "@@remove-empty(FEATURES)"]
 
-[tasks.test-inner]
-description = "Run tests on all the crates, without restarting PG"
-dependencies = ["pg-create-db"]
-env = { POSTGRES_PORT = "${PG_PORT}" }
-command = "cargo"
-args = ["test", "--jobs=1", "--lib", "--examples", "--tests", "--bins", "@@remove-empty(FEATURES)"]
-
 [tasks.test]
-description = "Run tests on all the crates, restarts and stops PG"
-dependencies = ["pg-stop", "pg-start", "test-inner", "pg-stop"]
+description = "Run tests on all the crates"
+command = "cargo"
+args = ["test", "--lib", "--examples", "--tests", "--bins", "@@remove-empty(FEATURES)"]
 
 [tasks.clippy]
 description = "Run the clippy linter on all crates"
