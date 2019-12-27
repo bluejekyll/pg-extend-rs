@@ -7,15 +7,15 @@
 
 // FDW tests disabled because it's broken with PostgreSQL 11+.
 // See See https://github.com/bluejekyll/pg-extend-rs/issues/49
-#![cfg(fdw_is_broken)]
 
 extern crate integration_tests;
 
 use integration_tests::*;
 
 #[test]
+#[ignore] // this test is currently broken
 fn test_fdw() {
-    test_in_db("fdw", |conn| {
+    test_in_db("fdw", |mut conn| {
         conn.batch_execute(
             "
 DROP SERVER IF EXISTS df CASCADE;
