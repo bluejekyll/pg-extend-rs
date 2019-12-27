@@ -110,6 +110,7 @@ jobs:
   cleanliness:
     name: cleanliness
     runs-on: ubuntu-latest
+    needs: postgres
     env:
       version: v11
     steps:
