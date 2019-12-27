@@ -155,8 +155,9 @@ if ${PG_BIN_DIR}/pg_isready -p ${PG_PORT} ; then exit 0 ; fi
 
 echo "Starting postgres ${PG_DB_DIR:?}"
 mkdir -p ${PG_DB_DIR:?}
-${PG_BIN_DIR}/pg_ctl restart -D ${PG_DB_DIR:?} -l ${PG_LOGPATH} -o "-p ${PG_PORT:?}"
+${PG_BIN_DIR}/pg_ctl start -D ${PG_DB_DIR:?} -l ${PG_LOGPATH} -o "-p ${PG_PORT:?}"
 ${PG_BIN_DIR}/pg_isready -p ${PG_PORT} -t 5
+${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -o /dev/null -c "SELECT 1" # check the connection works
 '''
 ]
 
