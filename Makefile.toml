@@ -9,6 +9,7 @@
 
 [config]
 skip_core_tasks = true
+on_error_task = "on_error"
 
 [config.modify_core_tasks]
 # if true, all core tasks are set to private (default false)
@@ -48,23 +49,24 @@ PATH = "${PG_BIN_DIR}:${PATH}"
 
 [tasks.install-openssl]
 description = "Installs OpenSSL on Windows"
-env = { OPENSSL_VERSION = "1_1_1d", OPENSSL_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}\\target\\OpenSSL" }
+workspace = false
+env = { OPENSSL_VERSION = "1_1_1d", OPENSSL_DIR = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}\\target\\OpenSSL" }
 condition = { platforms = ["windows"], files_not_exist = ["${OPENSSL_DIR}"] }
 script_runner = "powershell"
 script_extension = "ps1"
 script = [
 '''
-mkdir ${env:CARGO_MAKE_WORKING_DIRECTORY}\\target
-mkdir ${env:CARGO_MAKE_WORKING_DIRECTORY}\\target\OpenSSL
-Invoke-WebRequest -URI "http://slproweb.com/download/Win64OpenSSL-${env:OPENSSL_VERSION}.exe" -OutFile "${env:CARGO_MAKE_WORKING_DIRECTORY}\target\OpenSSL.exe"
-Start-Process -FilePath "${env:CARGO_MAKE_WORKING_DIRECTORY}\target\OpenSSL.exe" -ArgumentList "/SILENT /VERYSILENT /SP- /DIR=${env:OPENSSL_DIR}"
+mkdir ${env:CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}\\target
+mkdir ${env:CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}\\target\OpenSSL
+Invoke-WebRequest -URI "http://slproweb.com/download/Win64OpenSSL-${env:OPENSSL_VERSION}.exe" -OutFile "${env:CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}\target\OpenSSL.exe"
+Start-Process -FilePath "${env:CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}\target\OpenSSL.exe" -ArgumentList "/SILENT /VERYSILENT /SP- /DIR=${env:OPENSSL_DIR}"
 Invoke-WebRequest "https://curl.haxx.se/ca/cacert.pem" -O "${env:OPENSSL_DIR}\cacert.pem"
 '''
 ]
 
 [tasks.install-postgres]
-workspace = false
 description = "Installs Postgres"
+workspace = false
 windows_alias = "empty"
 script_runner = "@shell"
 script = [
@@ -155,7 +157,11 @@ if ${PG_BIN_DIR}/pg_isready -p ${PG_PORT} ; then exit 0 ; fi
 
 echo "Starting postgres ${PG_DB_DIR:?}"
 mkdir -p ${PG_DB_DIR:?}
-${PG_BIN_DIR}/pg_ctl start -D ${PG_DB_DIR:?} -l ${PG_LOGPATH} -o "-p ${PG_PORT:?}"
+
+cp ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY:?}/integration-tests/postgresql.conf ${PG_DB_DIR:?}/
+mv ${PG_LOGPATH:?} ${PG_LOGPATH}.bak || true
+
+${PG_BIN_DIR}/pg_ctl start -D ${PG_DB_DIR:?} -l ${PG_LOGPATH:?} -o "-p ${PG_PORT:?}"
 ${PG_BIN_DIR}/pg_isready -p ${PG_PORT} -t 5
 ${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -o /dev/null -c "SELECT 1" # check the connection works
 '''
@@ -329,6 +335,17 @@ dependencies = ["check", "build", "test"]
 [tasks.default]
 description = "Run the all task"
 run_task = "all"
+
+[tasks.on_error]
+description = "Dumps addition information to the CLI on failure"
+workspace = false
+script_runner = "@shell"
+script = [
+'''
+echo "!!!!Dumping PG log after failure!!!!"
+cat ${PG_LOGPATH} || true
+'''
+]
 
 ##
 ## All feature testing builds
