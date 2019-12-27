@@ -10,7 +10,7 @@ extern crate pg_extern_attr;
 
 use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_datum::TryFromPgDatum;
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple, ForeignTableMetadata};
 use pg_extend::{info, pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
@@ -75,7 +75,7 @@ impl Iterator for CacheFDW {
 }
 
 impl ForeignData for CacheFDW {
-    fn begin(_sopts: OptionMap, _topts: OptionMap, _table_name: String) -> Self {
+    fn begin(_table_metadata: &ForeignTableMetadata) -> Self {
         let c = get_cache().read().unwrap();
         let vecs = c.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
@@ -99,7 +99,7 @@ CREATE FOREIGN TABLE {schema}.mytable (
         )])
     }
 
-    fn index_columns(_sopts: OptionMap, _topts: OptionMap, _tn: String) -> Option<Vec<String>> {
+    fn index_columns(_table_metadata: &ForeignTableMetadata) -> Option<Vec<String>> {
         Some(vec!["key".into()])
     }
 

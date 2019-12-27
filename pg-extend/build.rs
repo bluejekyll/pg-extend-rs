@@ -88,6 +88,7 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
         .whitelist_function("errstart")
         .whitelist_function("errfinish")
         .whitelist_function("pfree")
+        .whitelist_function("list_.*")
         // Whitelist all PG-related types
         .whitelist_type("PG.*")
         // Whitelist used types
@@ -123,6 +124,7 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
         .whitelist_function("slot_getallattrs")
         .whitelist_function("get_rel_name")
         .whitelist_function("GetForeignTable")
+        .whitelist_function("GetForeignServer")
         .whitelist_function("make_foreignscan")
         .whitelist_function("extract_actual_clauses")
         .whitelist_function("add_path")
@@ -142,6 +144,8 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
         .whitelist_type("ForeignPath")
         .whitelist_type("RelOptInfo")
         .whitelist_type("Form_pg_attribute")
+        .whitelist_type("DefElem")
+        .whitelist_type("Value")
         .whitelist_var("InvalidBuffer")
 }
 
