@@ -10,9 +10,6 @@
 [config]
 skip_core_tasks = true
 
-# Default to v12
-additional_profiles = ["v12"]
-
 [config.modify_core_tasks]
 # if true, all core tasks are set to private (default false)
 private = true
@@ -29,42 +26,10 @@ CARGO_MAKE_KCOV_VERSION = "37"
 # This can be overriden (e.g. in pg-extend crate) to specify a more limited set of features
 ALL_FEATURES = "--all-features"
 
-[env.v10]
-VER_FEATURES = "--features=postgres-10"
-PG_VERSION = "10.11"
-PG_PORT = "5442" # port is incremented by the major version, 5432 + ${PG_VERSION}
-
-PG_DIR = "${TARGET_DIR}/postgres"
-PG_DL_DIR = "${PG_DIR}"
-PG_BUILD_DIR = "${PG_DIR}/postgres_build_${PG_VERSION}"
-PG_INSTALL_DIR = "${PG_DIR}/postgres_${PG_VERSION}"
-PG_BIN_DIR = "${PG_INSTALL_DIR}/bin"
-PG_DB_DIR = "${TARGET_DIR}/postgres_db_${PG_VERSION}"
-POSTGRES_TEST_DB = "pg_extend_rs_test_db"
-PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
-
-PATH = "${PG_BIN_DIR}:${PATH}"
-
-[env.v11]
-VER_FEATURES = "--features=postgres-11"
-PG_VERSION = "11.6"
-PG_PORT = "5443" # port is incremented by the major version, 5432 + ${PG_VERSION}
-
-PG_DIR = "${TARGET_DIR}/postgres"
-PG_DL_DIR = "${PG_DIR}"
-PG_BUILD_DIR = "${PG_DIR}/postgres_build_${PG_VERSION}"
-PG_INSTALL_DIR = "${PG_DIR}/postgres_${PG_VERSION}"
-PG_BIN_DIR = "${PG_INSTALL_DIR}/bin"
-PG_DB_DIR = "${TARGET_DIR}/postgres_db_${PG_VERSION}"
-POSTGRES_TEST_DB = "pg_extend_rs_test_db"
-PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
-
-PATH = "${PG_BIN_DIR}:${PATH}"
-
-[env.v12]
-VER_FEATURES = "--features=postgres-12"
-PG_VERSION = "12.1"
-PG_PORT = "5444" # port is incremented by the major version, 5432 + ${PG_VERSION}
+# Defaults are all for postgres version 12
+PG_VERSION = { source = "${CARGO_MAKE_PROFILE}", default_value = "12.1", mapping = { v10 = "10.11", v11 = "11.6" }}
+PG_PORT = { source = "${CARGO_MAKE_PROFILE}", default_value = "5444", mapping = { v10 = "5442", v11 = "5443" }}
+VER_FEATURES = { source = "${CARGO_MAKE_PROFILE}", default_value = "--features=postgres-12", mapping = { v10 = "--features=postgres-10", v11 = "--features=postgres-11" }}
 
 PG_DIR = "${TARGET_DIR}/postgres"
 PG_DL_DIR = "${PG_DIR}"
