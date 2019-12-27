@@ -10,6 +10,9 @@
 [config]
 skip_core_tasks = true
 
+# Default to v12
+additional_profiles = ["v12"]
+
 [config.modify_core_tasks]
 # if true, all core tasks are set to private (default false)
 private = true
@@ -23,22 +26,8 @@ CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY = "${TARGET_DIR}/kcov"
 CARGO_MAKE_KCOV_DOWNLOAD_DIRECTORY = "${TARGET_DIR}/kcov-dl"
 CARGO_MAKE_KCOV_VERSION = "37"
 
-# This should match the 12.1 settings
+# This can be overriden (e.g. in pg-extend crate) to specify a more limited set of features
 ALL_FEATURES = "--all-features"
-VER_FEATURES = "--features=postgres-12"
-PG_VERSION = "12.1"
-PG_PORT = "5444"
-
-PG_DIR = "${TARGET_DIR}/postgres"
-PG_DL_DIR = "${PG_DIR}"
-PG_BUILD_DIR = "${PG_DIR}/postgres_build_${PG_VERSION}"
-PG_INSTALL_DIR = "${PG_DIR}/postgres_${PG_VERSION}"
-PG_BIN_DIR = "${PG_INSTALL_DIR}/bin"
-PG_DB_DIR = "${TARGET_DIR}/postgres_db_${PG_VERSION}"
-POSTGRES_TEST_DB = "pg_extend_rs_test_db"
-PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
-
-PATH = "${PG_BIN_DIR}:${PATH}"
 
 [env.v10]
 VER_FEATURES = "--features=postgres-10"
