@@ -194,8 +194,8 @@ pub fn test_in_db<F: FnOnce(Client) + UnwindSafe>(lib_name: &str, test: F) {
 
     let lib_path = build_lib(lib_name).expect("failed to build extension");
     assert!(lib_path.exists());
-    let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
-    let lib_path = copy_to_tempdir(tmpdir.path(), lib_path);
+    //let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
+    //let lib_path = copy_to_tempdir(tmpdir.path(), lib_path);
 
     println!("creating statements with bin: {}", bin_path.display());
     run_create_stmts(&bin_path, &lib_path);
