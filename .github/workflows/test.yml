@@ -24,15 +24,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: cargo cache
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-          ${{ runner.os }}-cargo
-    
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -68,15 +59,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: cargo cache
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-          ${{ runner.os }}-cargo
-    
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
