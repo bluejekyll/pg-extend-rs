@@ -1,0 +1,21 @@
+[config]
+skip_core_tasks = true
+
+[config.modify_core_tasks]
+# if true, all core tasks are set to private (default false)
+private = true
+
+## Feature profiles
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
+
+[tasks.test-inner]
+description = "Run tests on all the crates, without restarting PG"
+dependencies = ["pg-create-db"]
+env = { POSTGRES_PORT = "${PG_PORT}" }
+command = "cargo"
+args = ["test", "--jobs=1", "--lib", "--examples", "--tests", "--bins", "@@remove-empty(FEATURES)", "--", "--test-threads=1"]
+
+[tasks.test]
+description = "Run tests on all the crates, restarts and stops PG"
+dependencies = ["pg-stop", "pg-start", "test-inner", "pg-stop"]
