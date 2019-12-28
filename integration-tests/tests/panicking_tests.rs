@@ -1,3 +1,5 @@
+#![cfg(off)]
+
 extern crate integration_tests;
 
 use integration_tests::*;
