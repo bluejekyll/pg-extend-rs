@@ -147,8 +147,6 @@ pub fn run_create_stmts(bin_path: &PathBuf, lib_path: &PathBuf) {
         if let Err(err) = result {
             error = Some(err);
         } else {
-            // FIXME: this sleep helps all the tests pass, PG is finding files not ready??
-            std::thread::sleep(std::time::Duration::from_millis(100));
             return;
         }
     }
@@ -178,16 +176,10 @@ pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
         })
         .unwrap();
 
-    // FIXME: this sleep helps all the tests pass, PG is finding files not ready??
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
     tmplib
 }
 
 pub fn test_in_db<F: FnOnce(Client) + UnwindSafe>(lib_name: &str, test: F) {
-    // FIXME: this sleep helps all the tests pass, PG is finding files not ready??
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
     println!("test_in_db: {}", lib_name);
     let bin_path = build_bin(lib_name).expect("failed to build stmt binary");
     assert!(bin_path.exists());

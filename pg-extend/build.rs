@@ -16,12 +16,13 @@ use std::process::Command;
 fn main() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("postgres.rs");
 
+    let pg_config = env::var("PG_CONFIG").unwrap_or_else(|_| "pg_config".to_string());
+
     // Re-run this if wrapper.h changes
     println!("cargo:rerun-if-changed=wrapper.h");
     println!("cargo:rerun-if-changed=pg_majorversion.h");
-    println!("cargo:rerun-if-env-changed=PG_INCLUDE_PATH");
 
-    let pg_include = include_dir()
+    let pg_include = include_dir(&pg_config)
         .expect("set environment variable PG_INCLUDE_PATH to the Postgres install include dir, e.g. /var/lib/pgsql/include/server");
 
     // these cause duplicate definition problems on linux
@@ -154,12 +155,9 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
     bindgen::Builder::default().clang_arg(format!("-I{}", pg_include))
 }
 
-fn include_dir() -> Result<String, env::VarError> {
+fn include_dir(pg_config: &str) -> Result<String, env::VarError> {
     env::var("PG_INCLUDE_PATH").or_else(|err| {
-        match Command::new("pg_config")
-            .arg("--includedir-server")
-            .output()
-        {
+        match Command::new(pg_config).arg("--includedir-server").output() {
             Ok(out) => Ok(String::from_utf8(out.stdout).unwrap().trim().to_string()),
             Err(..) => Err(err),
         }
