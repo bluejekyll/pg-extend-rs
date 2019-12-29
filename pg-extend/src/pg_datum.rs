@@ -173,6 +173,10 @@ impl<'s> TryFromPgDatum<'s> for i64 {
         'mc: 's,
     {
         if let Some(datum) = datum.0 {
+            assert!(
+                std::mem::size_of::<Datum>() >= std::mem::size_of::<i64>(),
+                "Datum not large enough for i64 values"
+            );
             Ok(datum as i64)
         } else {
             Err("datum was NULL")
