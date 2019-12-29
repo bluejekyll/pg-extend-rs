@@ -395,16 +395,24 @@ where
                     return Err("argument must be empty or one-dimensional array");
                 }
 
-                let nulls = 0 as *mut *mut i8;
-                let elements = 0 as *mut *mut Datum;
-                let nelems = 0 as *mut i32;
+                let mut elmlen: pg_sys::int16 = 0;
+                let mut elmbyval: pg_sys::bool_ = 0;
+                let mut elmalign: ::std::os::raw::c_char = 0;
+
+                pg_sys::get_typlenbyvalalign((*arr_type).elemtype, &mut elmlen, &mut elmbyval, &mut elmalign);
+
+                let mut nulls = 0 as *mut pg_sys::bool_;
+                let mut elements = 0 as *mut Datum;
+                let mut nelems: i32 = 0;
 
                 pg_sys::deconstruct_array(arr_type, (*arr_type).elemtype,
-                    -1, pgbool!(false), b'i' as i8,
-                    elements, nulls, nelems,
+                    elmlen as i32, elmbyval, elmalign,
+                    &mut elements, &mut nulls, &mut nelems,
                 );
 
-                Ok(std::slice::from_raw_parts(elements as *const T, *nelems as usize))
+                let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
+
+                Ok(slice_cast::cast(datums))
             }
         } else {
             Err("datum was NULL")

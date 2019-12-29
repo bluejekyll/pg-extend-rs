@@ -33,6 +33,7 @@ postgres-12 = []
 
 [dependencies]
 cfg-if = "0.1.10"
+slice-cast = "0.1"
 
 [build-dependencies]
 bindgen = "0.52"
