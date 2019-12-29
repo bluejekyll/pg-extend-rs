@@ -370,6 +370,60 @@ where
     }
 }
 
+impl<'s, T> TryFromPgDatum<'s> for &[T]
+where
+    T: 's + TryFromPgDatum<'s>,
+{
+    fn try_from<'mc>(
+        _memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            unsafe {
+                let datum = datum as *mut pg_sys::varlena;
+                if datum.is_null() {
+                    return Err("datum was NULL");
+                }
+
+                let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
+
+                if (*arr_type).ndim > 1 {
+                    return Err("argument must be empty or one-dimensional array");
+                }
+
+                let nulls = 0 as *mut *mut i8;
+                let elements = 0 as *mut *mut Datum;
+                let nelems = 0 as *mut i32;
+
+                pg_sys::deconstruct_array(arr_type, (*arr_type).elemtype,
+                    -1, pgbool!(false), b'i' as i8,
+                    elements, nulls, nelems,
+                );
+
+                Ok(std::slice::from_raw_parts(elements as *const T, *nelems as usize))
+            }
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl<'mc, 's, T> From<&[T]> for PgDatum<'mc>
+where
+    'mc: 's,
+    T: 's,
+    PgDatum<'mc>: From<T>,
+{
+    fn from(_value: &[T]) -> Self {
+        // TODO
+        PgDatum(None, PhantomData)
+    }
+}
+
 impl From<()> for PgDatum<'static> {
     fn from(_value: ()) -> Self {
         PgDatum(None, PhantomData)

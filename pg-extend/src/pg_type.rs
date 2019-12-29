@@ -246,8 +246,13 @@ impl PgTypeInfo for Text<'_> {
     fn pg_type() -> PgType {
         PgType::Text
     }
+}
 
-    fn is_option() -> bool {
-        false
+impl<T> PgTypeInfo for &[T]
+where
+    T: PgTypeInfo,
+{
+    fn pg_type() -> PgType {
+        T::pg_type()
     }
 }

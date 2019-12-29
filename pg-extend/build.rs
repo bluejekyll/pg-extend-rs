@@ -90,6 +90,7 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
         .whitelist_function("errfinish")
         .whitelist_function("pfree")
         .whitelist_function("list_.*")
+        .whitelist_function("palloc")
         // Whitelist all PG-related types
         .whitelist_type("PG.*")
         // Whitelist used types
@@ -97,6 +98,7 @@ fn get_bindings(pg_include: &str) -> bindgen::Builder {
         .whitelist_type("text")
         .whitelist_type("varattrib_1b")
         .whitelist_type("varattrib_4b")
+        .whitelist_type(".*Array.*")
         // Whitelist PG-related values
         .whitelist_var("PG.*")
         // Whitelist log-level values
