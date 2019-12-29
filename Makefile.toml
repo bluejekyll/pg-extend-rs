@@ -42,6 +42,7 @@ POSTGRES_TEST_DB = "pg_extend_rs_test_db"
 PG_LOGPATH = "${TARGET_DIR}/postgres-${PG_VERSION}.log"
 
 PATH = "${PG_BIN_DIR}:${PATH}"
+PG_CONFIG = "${PG_BIN_DIR}/pg_config"
 
 ##
 ## Installation tasks
@@ -315,9 +316,13 @@ args = ["test", "--all-targets", "@@remove-empty(FEATURES)"]
 
 [tasks.clippy]
 description = "Run the clippy linter on all crates"
-dependencies = ["clean", "install-postgres"]
+#dependencies = ["clean", "install-postgres"]
+dependencies = ["clean-build", "install-postgres"]
 command = "cargo"
-args = ["clippy", "--all-targets", "${ALL_FEATURES}", "--", "-D", "warnings"]
+#args = ["clippy", "--all-targets", "${ALL_FEATURES}", "--", "-D", "warnings"]
+# FIXME: the cbove command is correct, but seems to hit an issue with clippy and library paths, not clear why...
+workspace = false
+args = ["clippy", "--all", "--all-targets", "--", "-D", "warnings"]
 
 [tasks.build-bench]
 description = "Check that all benchmarks compile"
