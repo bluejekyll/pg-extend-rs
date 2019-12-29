@@ -363,6 +363,8 @@ where
     }
 }
 
+/// Inner trait used to limit which types can be used for direct casting
+#[doc(hidden)]
 pub trait PgPrimitiveDatum {}
 
 impl PgPrimitiveDatum for i16 {}
