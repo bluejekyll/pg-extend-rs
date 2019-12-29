@@ -14,7 +14,7 @@ description = "Run tests on all the crates, without restarting PG"
 dependencies = ["pg-create-db"]
 env = { POSTGRES_PORT = "${PG_PORT}" }
 command = "cargo"
-args = ["test", "--jobs=1", "--lib", "--examples", "--tests", "--bins", "@@remove-empty(FEATURES)", "--", "--test-threads=1"]
+args = ["test", "--all-targets", "@@remove-empty(FEATURES)"]
 
 [tasks.test]
 description = "Run tests on all the crates, restarts and stops PG"
