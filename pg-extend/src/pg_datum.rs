@@ -412,7 +412,16 @@ where
 
                 let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
 
-                Ok(slice_cast::cast(datums))
+                let mem_size_datums = std::mem::size_of_val(datums);
+                let datums = if mem_size_datums == 0 {
+                    std::slice::from_raw_parts(datums.as_ptr() as *const T, 0)
+                } else {
+                    let mem_size_type = std::mem::size_of::<T>();
+                    assert_eq!(mem_size_datums % mem_size_type, 0);
+                    std::slice::from_raw_parts(datums.as_ptr() as *const T, mem_size_datums / mem_size_type)
+                };
+
+                Ok(datums)
             }
         } else {
             Err("datum was NULL")
