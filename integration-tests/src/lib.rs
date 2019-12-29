@@ -175,21 +175,19 @@ pub fn copy_to_tempdir(path: &Path, lib_path: PathBuf) -> PathBuf {
             )
         })
         .unwrap();
+
     tmplib
 }
 
 pub fn test_in_db<F: FnOnce(Client) + UnwindSafe>(lib_name: &str, test: F) {
-    // FIXME: this sleep helps all the tests pass
-    std::thread::sleep(std::time::Duration::from_secs(1));
-
     println!("test_in_db: {}", lib_name);
     let bin_path = build_bin(lib_name).expect("failed to build stmt binary");
     assert!(bin_path.exists());
 
     let lib_path = build_lib(lib_name).expect("failed to build extension");
     assert!(lib_path.exists());
-    let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
-    let lib_path = copy_to_tempdir(tmpdir.path(), lib_path);
+    //let tmpdir = tempfile::tempdir().expect("failed to make tempdir");
+    //let lib_path = copy_to_tempdir(tmpdir.path(), lib_path);
 
     println!("creating statements with bin: {}", bin_path.display());
     run_create_stmts(&bin_path, &lib_path);
