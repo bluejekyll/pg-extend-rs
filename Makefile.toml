@@ -17,7 +17,13 @@ private = true
 
 ## General environment configuration
 [env]
+# Defaults are all for postgres version 12
+PG_VERSION = { source = "${CARGO_MAKE_PROFILE}", default_value = "12.1", mapping = { v10 = "10.11", v11 = "11.6" }}
+PG_PORT = { source = "${CARGO_MAKE_PROFILE}", default_value = "5444", mapping = { v10 = "5442", v11 = "5443" }}
+VER_FEATURES = { source = "${CARGO_MAKE_PROFILE}", default_value = "--features=postgres-12", mapping = { v10 = "--features=postgres-10", v11 = "--features=postgres-11" }}
+
 TARGET_DIR = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target"
+CARGO_TARGET_DIR = "${TARGET_DIR}/${PG_VERSION}_build"
 CARGO_MAKE_WORKSPACE_TARGET_DIRECTORY = "${TARGET_DIR}"
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
 CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY = "${TARGET_DIR}/kcov"
@@ -27,10 +33,7 @@ CARGO_MAKE_KCOV_VERSION = "37"
 # This can be overriden (e.g. in pg-extend crate) to specify a more limited set of features
 ALL_FEATURES = "--all-features"
 
-# Defaults are all for postgres version 12
-PG_VERSION = { source = "${CARGO_MAKE_PROFILE}", default_value = "12.1", mapping = { v10 = "10.11", v11 = "11.6" }}
-PG_PORT = { source = "${CARGO_MAKE_PROFILE}", default_value = "5444", mapping = { v10 = "5442", v11 = "5443" }}
-VER_FEATURES = { source = "${CARGO_MAKE_PROFILE}", default_value = "--features=postgres-12", mapping = { v10 = "--features=postgres-10", v11 = "--features=postgres-11" }}
+
 
 PG_DIR = "${TARGET_DIR}/postgres"
 PG_DL_DIR = "${PG_DIR}"
@@ -262,7 +265,7 @@ workspace = false
 script_runner = "@shell"
 script = [
 '''
-rm -rf ${TARGET_DIR:?}/debug
+rm -rf ${CARGO_TARGET_DIR:?}
 '''
 ]
 
