@@ -94,15 +94,16 @@ pub trait TryFromPgDatum<'s>: Sized {
         }
     }
 
-    /// Used for force casting
+    /// Used to perform the actual casting. You should not use this directly, but
+    /// you should implement it. `datum` is expected to be non-null
+    #[doc(hidden)]
     unsafe fn try_cast<'mc>(
         memory_context: &'mc PgAllocator,
         datum: Datum,
     ) -> Result<Self, &'static str>
     where
         Self: 's,
-        'mc: 's,
-    ;
+        'mc: 's;
 }
 
 impl<'s> TryFromPgDatum<'s> for i16 {
