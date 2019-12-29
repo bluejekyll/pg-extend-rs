@@ -9,6 +9,7 @@
 
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
+use std::os::raw::c_char;
 use std::ptr::NonNull;
 
 use crate::native::Text;
@@ -82,20 +83,38 @@ pub trait TryFromPgDatum<'s>: Sized {
     ) -> Result<Self, &'static str>
     where
         Self: 's,
-        'mc: 's;
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            unsafe {
+                Self::try_cast(memory_context, datum)
+            }
+        } else {
+            Err("datum was NULL")
+        }
+    }
+
+    /// Used for force casting
+    unsafe fn try_cast<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    ;
 }
 
 impl<'s> TryFromPgDatum<'s> for i16 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        if let Some(datum) = datum.0 {
-            Ok(datum as i16)
-        } else {
-            Err("datum was NULL")
-        }
+        Ok(datum as i16)
     }
 }
 
@@ -106,16 +125,15 @@ impl From<i16> for PgDatum<'_> {
 }
 
 impl<'s> TryFromPgDatum<'s> for f32 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        if let Some(datum) = datum.0 {
-            Ok(f32::from_bits(datum as u32))
-        } else {
-            Err("datum was NULL")
-        }
+        Ok(f32::from_bits(datum as u32))
     }
 }
 
@@ -126,16 +144,15 @@ impl From<f32> for PgDatum<'_> {
 }
 
 impl<'s> TryFromPgDatum<'s> for f64 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        if let Some(datum) = datum.0 {
-            Ok(f64::from_bits(datum as u64))
-        } else {
-            Err("datum was NULL")
-        }
+        Ok(f64::from_bits(datum as u64))
     }
 }
 
@@ -146,16 +163,15 @@ impl From<f64> for PgDatum<'_> {
 }
 
 impl<'s> TryFromPgDatum<'s> for i32 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        if let Some(datum) = datum.0 {
-            Ok(datum as i32)
-        } else {
-            Err("datum was NULL")
-        }
+        Ok(datum as i32)
     }
 }
 
@@ -166,20 +182,15 @@ impl From<i32> for PgDatum<'_> {
 }
 
 impl<'s> TryFromPgDatum<'s> for i64 {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        assert!(
-            std::mem::size_of::<Datum>() >= std::mem::size_of::<i64>(),
-            "Datum not large enough for i64 values"
-        );
-        if let Some(datum) = datum.0 {
-            Ok(datum as i64)
-        } else {
-            Err("datum was NULL")
-        }
+        Ok(datum as i64)
     }
 }
 
@@ -208,13 +219,19 @@ impl<'s> TryFromPgDatum<'s> for String {
         cstr.into_string()
             .map_err(|_| "String contained non-utf8 data")
     }
+
+    unsafe fn try_cast<'mc>(_: &'mc PgAllocator, _: Datum) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        unimplemented!("Cast is not implemented for this type");
+    }
 }
 
 // FIXME: this lifetime is wrong
 impl From<String> for PgDatum<'_> {
     fn from(value: String) -> Self {
-        use std::os::raw::c_char;
-
         let cstr = CString::new(value).expect("This shouldn't fail");
         let ptr: *const c_char = cstr.as_ptr();
 
@@ -226,37 +243,30 @@ impl From<String> for PgDatum<'_> {
 
 #[deprecated(note = "String is not Zero cost, please use the CString variant")]
 impl<'s> TryFromPgDatum<'s> for CString {
-    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
+    ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        use std::os::raw::c_char;
+        let text_val = datum as *const pg_sys::text;
 
-        if let Some(datum) = datum.0 {
-            let text_val = datum as *const pg_sys::text;
+        crate::guard_pg(|| {
+            let val: *mut c_char = pg_sys::text_to_cstring(text_val);
+            let cstr = CStr::from_ptr(val).to_owned();
 
-            unsafe {
-                crate::guard_pg(|| {
-                    let val: *mut c_char = pg_sys::text_to_cstring(text_val);
-                    let cstr = CStr::from_ptr(val).to_owned();
+            pg_sys::pfree(val as *mut _);
 
-                    pg_sys::pfree(val as *mut _);
-
-                    Ok(cstr)
-                })
-            }
-        } else {
-            Err("datum was NULL")
-        }
+            Ok(cstr)
+        })
     }
 }
 
 // FIXME: this lifetime is wrong
 impl From<CString> for PgDatum<'_> {
     fn from(value: CString) -> Self {
-        use std::os::raw::c_char;
-
         let ptr: *const c_char = value.as_ptr();
         let text = unsafe { crate::guard_pg(|| pg_sys::cstring_to_text(ptr)) };
 
@@ -265,45 +275,36 @@ impl From<CString> for PgDatum<'_> {
 }
 
 impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
-    fn try_from<'mc>(
+    unsafe fn try_cast<'mc>(
         memory_context: &'mc PgAllocator,
-        datum: PgDatum<'mc>,
+        datum: Datum,
     ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        use std::os::raw::c_char;
+        let text_val = datum as *const pg_sys::text;
+        crate::guard_pg(|| {
+            // from varlena.c
+            /*
+             * text_to_cstring
+             *
+             * Create a palloc'd, null-terminated C string from a text value.
+             *
+             * We support being passed a compressed or toasted text value.
+             * This is a bit bogus since such values shouldn't really be referred to as
+             * "text *", but it seems useful for robustness.  If we didn't handle that
+             * case here, we'd need another routine that did, anyway.
+             */
+            let cstr = pg_sys::text_to_cstring(text_val) as *mut c_char;
 
-        if let Some(datum) = datum.0 {
-            let text_val = datum as *const pg_sys::text;
+            // this is dangerous! it's owned by CString, which is why PgAllocated will
+            //  block the dealloc
+            //let cstr = CString::from_raw(val);
+            let allocated = PgAllocated::from_raw(memory_context, cstr);
 
-            unsafe {
-                crate::guard_pg(|| {
-                    // from varlena.c
-                    /*
-                     * text_to_cstring
-                     *
-                     * Create a palloc'd, null-terminated C string from a text value.
-                     *
-                     * We support being passed a compressed or toasted text value.
-                     * This is a bit bogus since such values shouldn't really be referred to as
-                     * "text *", but it seems useful for robustness.  If we didn't handle that
-                     * case here, we'd need another routine that did, anyway.
-                     */
-                    let cstr = pg_sys::text_to_cstring(text_val) as *mut c_char;
-
-                    // this is dangerous! it's owned by CString, which is why PgAllocated will
-                    //  block the dealloc
-                    //let cstr = CString::from_raw(val);
-                    let allocated = PgAllocated::from_raw(memory_context, cstr);
-
-                    Ok(allocated)
-                })
-            }
-        } else {
-            Err("datum was NULL")
-        }
+            Ok(allocated)
+        })
     }
 }
 
@@ -315,21 +316,17 @@ impl<'s> From<Text<'s>> for PgDatum<'s> {
 }
 
 impl<'s> TryFromPgDatum<'s> for Text<'s> {
-    fn try_from<'mc>(
+    unsafe fn try_cast<'mc>(
         memory_context: &'mc PgAllocator,
-        datum: PgDatum<'mc>,
+        datum: Datum,
     ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        if let Some(datum) = datum.0 {
-            let text_ptr = datum as *const pg_sys::text;
+        let text_ptr = datum as *const pg_sys::text;
 
-            unsafe { Ok(Text::from_raw(memory_context, text_ptr as *mut _)) }
-        } else {
-            Err("datum was NULL")
-        }
+        Ok(Text::from_raw(memory_context, text_ptr as *mut _))
     }
 }
 
@@ -354,6 +351,14 @@ where
 
         Ok(Some(result?))
     }
+
+    unsafe fn try_cast<'mc>(_: &'mc PgAllocator, _: Datum) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        unimplemented!("Cast is not implemented for this type");
+    }
 }
 
 impl<'mc, 's, T> From<Option<T>> for PgDatum<'mc>
@@ -374,58 +379,52 @@ impl<'s, T> TryFromPgDatum<'s> for &[T]
 where
     T: 's + TryFromPgDatum<'s>,
 {
-    fn try_from<'mc>(
-        _memory_context: &'mc PgAllocator,
-        datum: PgDatum<'mc>,
+    unsafe fn try_cast<'mc>(
+        _: &'mc PgAllocator,
+        datum: Datum,
     ) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
     {
-        if let Some(datum) = datum.0 {
-            unsafe {
-                let datum = datum as *mut pg_sys::varlena;
-                if datum.is_null() {
-                    return Err("datum was NULL");
-                }
-
-                let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
-
-                if (*arr_type).ndim > 1 {
-                    return Err("argument must be empty or one-dimensional array");
-                }
-
-                let mut elmlen: pg_sys::int16 = 0;
-                let mut elmbyval: pg_sys::bool_ = 0;
-                let mut elmalign: ::std::os::raw::c_char = 0;
-
-                pg_sys::get_typlenbyvalalign((*arr_type).elemtype, &mut elmlen, &mut elmbyval, &mut elmalign);
-
-                let mut nulls = 0 as *mut pg_sys::bool_;
-                let mut elements = 0 as *mut Datum;
-                let mut nelems: i32 = 0;
-
-                pg_sys::deconstruct_array(arr_type, (*arr_type).elemtype,
-                    elmlen as i32, elmbyval, elmalign,
-                    &mut elements, &mut nulls, &mut nelems,
-                );
-
-                let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
-
-                let mem_size_datums = std::mem::size_of_val(datums);
-                let datums = if mem_size_datums == 0 {
-                    std::slice::from_raw_parts(datums.as_ptr() as *const T, 0)
-                } else {
-                    let mem_size_type = std::mem::size_of::<T>();
-                    assert_eq!(mem_size_datums % mem_size_type, 0);
-                    std::slice::from_raw_parts(datums.as_ptr() as *const T, mem_size_datums / mem_size_type)
-                };
-
-                Ok(datums)
-            }
-        } else {
-            Err("datum was NULL")
+        let datum = datum as *mut pg_sys::varlena;
+        if datum.is_null() {
+            return Err("datum was NULL");
         }
+
+        let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
+
+        if (*arr_type).ndim > 1 {
+            return Err("argument must be empty or one-dimensional array");
+        }
+
+        let mut elmlen: pg_sys::int16 = 0;
+        let mut elmbyval: pg_sys::bool_ = 0;
+        let mut elmalign: ::std::os::raw::c_char = 0;
+
+        pg_sys::get_typlenbyvalalign((*arr_type).elemtype, &mut elmlen, &mut elmbyval, &mut elmalign);
+
+        let mut nulls = 0 as *mut pg_sys::bool_;
+        let mut elements = 0 as *mut Datum;
+        let mut nelems: i32 = 0;
+
+        pg_sys::deconstruct_array(arr_type, (*arr_type).elemtype,
+            elmlen as i32, elmbyval, elmalign,
+            &mut elements, &mut nulls, &mut nelems,
+        );
+
+        let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
+
+        let mem_size_datums = std::mem::size_of_val(datums);
+        let datums = if mem_size_datums == 0 {
+            std::slice::from_raw_parts(datums.as_ptr() as *const T, 0)
+        } else {
+            let mem_size_type = std::mem::size_of::<T>();
+            assert_eq!(mem_size_datums % mem_size_type, 0);
+            std::slice::from_raw_parts(datums.as_ptr() as *const T, mem_size_datums / mem_size_type)
+        };
+
+        Ok(datums)
     }
 }
 

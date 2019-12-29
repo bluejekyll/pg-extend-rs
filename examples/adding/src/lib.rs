@@ -26,20 +26,45 @@ fn add_small_one(value: i16) -> i16 {
     (value + 1)
 }
 
-/// Test the i16 value
+/// Test the i64 value
 #[pg_extern]
 fn add_big_one(value: i64) -> i64 {
     (value + 1)
 }
 
-/// Test the i16 value
+/// Test all 3 values at a time
 #[pg_extern]
 fn add_together(v1: i64, v2: i32, v3: i16) -> i64 {
     (v1 + i64::from(v2) + i64::from(v3))
 }
 
+// Test array of i32
 #[pg_extern]
 fn sum_array(arr: &[i32]) -> i32 {
+    arr.iter().sum()
+}
+
+// Test array of i16
+#[pg_extern]
+fn sum_small_array(arr: &[i16]) -> i16 {
+    arr.iter().sum()
+}
+
+// Test array of i64
+#[pg_extern]
+fn sum_big_array(arr: &[i64]) -> i64 {
+    arr.iter().sum()
+}
+
+// Test array of f32
+#[pg_extern]
+fn sum_float_array(arr: &[f32]) -> f32 {
+    arr.iter().sum()
+}
+
+// Test array of f32
+#[pg_extern]
+fn sum_double_array(arr: &[f64]) -> f64 {
     arr.iter().sum()
 }
 
