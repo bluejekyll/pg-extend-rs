@@ -71,6 +71,14 @@ impl<'mc> PgDatum<'mc> {
     }
 }
 
+pub trait PgPrimitiveDatum {}
+
+impl PgPrimitiveDatum for i16 {}
+impl PgPrimitiveDatum for i32 {}
+impl PgPrimitiveDatum for i64 {}
+impl PgPrimitiveDatum for f32 {}
+impl PgPrimitiveDatum for f64 {}
+
 /// A trait that allows for conversions between Postgres Datum types and Rust types.
 ///
 /// Only Sized types, that fit in a single Datum, bool, u8 - u64 e.g. Nothing else is
@@ -378,7 +386,7 @@ where
 
 impl<'s, T> TryFromPgDatum<'s> for &[T]
 where
-    T: 's + TryFromPgDatum<'s>,
+    T: 's + TryFromPgDatum<'s> + PgPrimitiveDatum,
 {
     unsafe fn try_cast<'mc>(
         _: &'mc PgAllocator,
@@ -416,6 +424,8 @@ where
 
         let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
 
+        // This is where the conversion from `&[Datum]` is done to `&[T]` by a simple type casting,
+        // however, we should use `T::try_cast(&'mc PgAllocator, Datum)` to ignore nulls
         let mem_size_datums = std::mem::size_of_val(datums);
         let datums = if mem_size_datums == 0 {
             std::slice::from_raw_parts(datums.as_ptr() as *const T, 0)
