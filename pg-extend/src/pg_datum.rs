@@ -392,6 +392,7 @@ where
                     return Err("datum was NULL");
                 }
 
+                #[allow(clippy::cast_ptr_alignment)]
                 let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
 
                 if (*arr_type).ndim > 1 {
@@ -404,8 +405,8 @@ where
 
                 pg_sys::get_typlenbyvalalign((*arr_type).elemtype, &mut elmlen, &mut elmbyval, &mut elmalign);
 
-                let mut nulls = 0 as *mut pg_sys::bool_;
-                let mut elements = 0 as *mut Datum;
+                let mut nulls = std::ptr::null_mut::<pg_sys::bool_>();
+                let mut elements = std::ptr::null_mut::<Datum>();
                 let mut nelems: i32 = 0;
 
                 pg_sys::deconstruct_array(arr_type, (*arr_type).elemtype,
