@@ -367,7 +367,7 @@ struct DetoastedArrayWrapper {
     original_datum: *mut pg_sys::ArrayType,
     arr_type: *mut pg_sys::ArrayType,
     elements: *mut Datum,
-    nulls: *mut pg_sys::bool_
+    nulls: *mut pg_sys::bool_,
 }
 
 impl DetoastedArrayWrapper {
@@ -387,7 +387,7 @@ impl DetoastedArrayWrapper {
             original_datum,
             arr_type,
             elements: std::ptr::null_mut::<Datum>(),
-            nulls: std::ptr::null_mut::<pg_sys::bool_>()
+            nulls: std::ptr::null_mut::<pg_sys::bool_>(),
         })
     }
 }
@@ -461,7 +461,10 @@ where
                     &mut nelems,
                 );
 
-                let datums = std::slice::from_raw_parts(detoasted_wrapper.elements as *const Datum, nelems as usize);
+                let datums = std::slice::from_raw_parts(
+                    detoasted_wrapper.elements as *const Datum,
+                    nelems as usize,
+                );
 
                 // This is where the conversion from `&[Datum]` is done to `&[T]` by a simple type casting,
                 // however, we should use `T::try_cast(&'mc PgAllocator, Datum)` to ignore nulls
