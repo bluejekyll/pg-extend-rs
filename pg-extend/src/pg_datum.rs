@@ -399,7 +399,7 @@ where
                 }
 
                 let mut elmlen: pg_sys::int16 = 0;
-                let mut elmbyval: pg_sys::bool_ = 0;
+                let mut elmbyval = pgbool!(false);
                 let mut elmalign: ::std::os::raw::c_char = 0;
 
                 pg_sys::get_typlenbyvalalign((*arr_type).elemtype, &mut elmlen, &mut elmbyval, &mut elmalign);
