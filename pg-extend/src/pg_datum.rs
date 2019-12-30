@@ -363,6 +363,50 @@ where
     }
 }
 
+struct DetoastedArrayWrapper {
+    original_datum: *mut pg_sys::ArrayType,
+    arr_type: *mut pg_sys::ArrayType,
+    elements: *mut Datum,
+    nulls: *mut pg_sys::bool_
+}
+
+impl DetoastedArrayWrapper {
+    unsafe fn detoasted(datum: Datum) -> Result<Self, &'static str> {
+        let datum = datum as *mut pg_sys::varlena;
+        if datum.is_null() {
+            return Err("datum was NULL");
+        }
+
+        #[allow(clippy::cast_ptr_alignment)]
+        let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
+
+        Ok(DetoastedArrayWrapper {
+            original_datum: datum as *mut pg_sys::ArrayType,
+            arr_type,
+            elements: std::ptr::null_mut::<Datum>(),
+            nulls: std::ptr::null_mut::<pg_sys::bool_>()
+        })
+    }
+}
+
+impl Drop for DetoastedArrayWrapper {
+    fn drop(&mut self) {
+        if self.arr_type != self.original_datum {
+            unsafe {
+                if !self.arr_type.is_null() {
+                    pg_sys::pfree(self.arr_type as *mut _);
+                }
+                if !self.elements.is_null() {
+                    pg_sys::pfree(self.elements as *mut _);
+                }
+                if !self.nulls.is_null() {
+                    pg_sys::pfree(self.nulls as *mut _);
+                }
+            }
+        }
+    }
+}
+
 /// Inner trait used to limit which types can be used for direct casting
 #[doc(hidden)]
 pub trait PgPrimitiveDatum {}
@@ -373,7 +417,7 @@ impl PgPrimitiveDatum for i64 {}
 impl PgPrimitiveDatum for f32 {}
 impl PgPrimitiveDatum for f64 {}
 
-impl<'s, T> TryFromPgDatum<'s> for &[T]
+impl<'s, T> TryFromPgDatum<'s> for &'s [T]
 where
     T: 's + TryFromPgDatum<'s> + PgPrimitiveDatum,
 {
@@ -384,15 +428,9 @@ where
     {
         if let Some(datum) = datum.0 {
             unsafe {
-                let datum = datum as *mut pg_sys::varlena;
-                if datum.is_null() {
-                    return Err("datum was NULL");
-                }
+                let mut detoasted_wrapper = DetoastedArrayWrapper::detoasted(datum)?;
 
-                #[allow(clippy::cast_ptr_alignment)]
-                let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
-
-                if (*arr_type).ndim > 1 {
+                if (*(detoasted_wrapper.arr_type)).ndim > 1 {
                     return Err("argument must be empty or one-dimensional array");
                 }
 
@@ -401,28 +439,26 @@ where
                 let mut elmalign: ::std::os::raw::c_char = 0;
 
                 pg_sys::get_typlenbyvalalign(
-                    (*arr_type).elemtype,
+                    (*(detoasted_wrapper.arr_type)).elemtype,
                     &mut elmlen,
                     &mut elmbyval,
                     &mut elmalign,
                 );
 
-                let mut nulls = std::ptr::null_mut::<pg_sys::bool_>();
-                let mut elements = std::ptr::null_mut::<Datum>();
                 let mut nelems: i32 = 0;
 
                 pg_sys::deconstruct_array(
-                    arr_type,
-                    (*arr_type).elemtype,
+                    detoasted_wrapper.arr_type,
+                    (*(detoasted_wrapper.arr_type)).elemtype,
                     elmlen as i32,
                     elmbyval,
                     elmalign,
-                    &mut elements,
-                    &mut nulls,
+                    &mut detoasted_wrapper.elements,
+                    &mut detoasted_wrapper.nulls,
                     &mut nelems,
                 );
 
-                let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
+                let datums = std::slice::from_raw_parts(detoasted_wrapper.elements as *const Datum, nelems as usize);
 
                 // This is where the conversion from `&[Datum]` is done to `&[T]` by a simple type casting,
                 // however, we should use `T::try_cast(&'mc PgAllocator, Datum)` to ignore nulls
