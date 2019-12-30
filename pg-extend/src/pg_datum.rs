@@ -446,18 +446,6 @@ where
     }
 }
 
-impl<'mc, 's, T> From<&[T]> for PgDatum<'mc>
-where
-    'mc: 's,
-    T: 's,
-    PgDatum<'mc>: From<T>,
-{
-    fn from(_value: &[T]) -> Self {
-        // TODO
-        PgDatum(None, PhantomData)
-    }
-}
-
 impl From<()> for PgDatum<'static> {
     fn from(_value: ()) -> Self {
         PgDatum(None, PhantomData)
