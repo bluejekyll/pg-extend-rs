@@ -29,9 +29,6 @@
 
 include!(concat!(env!("OUT_DIR"), "/postgres.rs"));
 
-#[cfg(target_os = "macos")]
-pub type bool_ = ::std::os::raw::c_char;
-
 #[cfg(target_os = "linux")]
 use std::os::raw::c_int;
 
