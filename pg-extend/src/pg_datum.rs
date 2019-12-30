@@ -377,10 +377,7 @@ impl<'s, T> TryFromPgDatum<'s> for &[T]
 where
     T: 's + TryFromPgDatum<'s> + PgPrimitiveDatum,
 {
-    fn try_from<'mc>(
-        _: &'mc PgAllocator,
-        datum: PgDatum<'mc>,
-    ) -> Result<Self, &'static str>
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
     where
         Self: 's,
         'mc: 's,
@@ -403,15 +400,26 @@ where
                 let mut elmbyval = pgbool!(false);
                 let mut elmalign: ::std::os::raw::c_char = 0;
 
-                pg_sys::get_typlenbyvalalign((*arr_type).elemtype, &mut elmlen, &mut elmbyval, &mut elmalign);
+                pg_sys::get_typlenbyvalalign(
+                    (*arr_type).elemtype,
+                    &mut elmlen,
+                    &mut elmbyval,
+                    &mut elmalign,
+                );
 
                 let mut nulls = std::ptr::null_mut::<pg_sys::bool_>();
                 let mut elements = std::ptr::null_mut::<Datum>();
                 let mut nelems: i32 = 0;
 
-                pg_sys::deconstruct_array(arr_type, (*arr_type).elemtype,
-                    elmlen as i32, elmbyval, elmalign,
-                    &mut elements, &mut nulls, &mut nelems,
+                pg_sys::deconstruct_array(
+                    arr_type,
+                    (*arr_type).elemtype,
+                    elmlen as i32,
+                    elmbyval,
+                    elmalign,
+                    &mut elements,
+                    &mut nulls,
+                    &mut nelems,
                 );
 
                 let datums = std::slice::from_raw_parts(elements as *const Datum, nelems as usize);
@@ -424,7 +432,10 @@ where
                 } else {
                     let mem_size_type = std::mem::size_of::<T>();
                     assert_eq!(mem_size_datums % mem_size_type, 0);
-                    std::slice::from_raw_parts(datums.as_ptr() as *const T, mem_size_datums / mem_size_type)
+                    std::slice::from_raw_parts(
+                        datums.as_ptr() as *const T,
+                        mem_size_datums / mem_size_type,
+                    )
                 };
 
                 Ok(datums)
