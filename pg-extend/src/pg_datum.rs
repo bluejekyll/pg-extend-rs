@@ -380,8 +380,11 @@ impl DetoastedArrayWrapper {
         #[allow(clippy::cast_ptr_alignment)]
         let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
 
+        #[allow(clippy::cast_ptr_alignment)]
+        let original_datum = datum as *mut pg_sys::ArrayType;
+
         Ok(DetoastedArrayWrapper {
-            original_datum: datum as *mut pg_sys::ArrayType,
+            original_datum,
             arr_type,
             elements: std::ptr::null_mut::<Datum>(),
             nulls: std::ptr::null_mut::<pg_sys::bool_>()
