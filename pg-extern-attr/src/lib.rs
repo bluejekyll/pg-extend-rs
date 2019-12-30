@@ -162,7 +162,7 @@ fn sql_param_types(arg_types: &[Type]) -> (TokenStream, bool) {
         let sql_name = Ident::new(&format!("sql_{}", i), arg_type.span());
 
         let sql_param = quote!(
-            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(),
+            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(<#arg_type>::is_array()),
         );
 
         tokens.extend(sql_param);
@@ -180,7 +180,7 @@ fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
         syn::ReturnType::Type(_, ty) => quote!(#ty),
     };
 
-    quote_spanned!(ty.span() => pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
+    quote_spanned!(ty.span() => pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt(<#ty>::is_array()))
 }
 
 /// Returns Rust code to figure out if the function takes optional arguments. Functions with

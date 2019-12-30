@@ -91,12 +91,13 @@ impl PgType {
     }
 
     /// Return the string representation of this type
-    pub fn as_str(self) -> &'static str {
+    pub fn as_str(self, as_array: bool) -> &'static str {
         match self {
             // abstime 	AbsoluteTime 	utils/nabstime.h
             PgType::AbsoluteTime => "abstime",
             // bigint (int8) 	int64 	postgres.h
             PgType::BigInt => "bigint",
+            PgType::Int8 if as_array => "int8[]",
             PgType::Int8 => "int8",
             // boolean 	bool 	postgres.h (maybe compiler built-in)
             PgType::Boolean => "boolean",
@@ -114,17 +115,21 @@ impl PgType {
             PgType::Date => "date",
             // smallint (int2) 	int16 	postgres.h
             PgType::SmallInt => "smallint",
+            PgType::Int2 if as_array => "int2[]",
             PgType::Int2 => "int2",
             // int2vector 	int2vector* 	postgres.h
             PgType::Int2Vector => "int2vector",
             // integer (int4) 	int32 	postgres.h
             PgType::Integer => "integer",
+            PgType::Int4 if as_array => "int4[]",
             PgType::Int4 => "int4",
             // real (float4) 	float4* 	postgres.h
             PgType::Real => "real",
+            PgType::Float4 if as_array => "float4[]",
             PgType::Float4 => "float4",
             // double precision (float8) 	float8* 	postgres.h
             PgType::DoublePrecision => "double precision",
+            PgType::Float8 if as_array => "float8[]",
             PgType::Float8 => "float8",
             // interval 	Interval* 	datatype/timestamp.h
             PgType::Interval => "interval",
@@ -166,8 +171,8 @@ impl PgType {
     }
 
     /// Return the String to be used for the RETURNS statement in SQL
-    pub fn return_stmt(self) -> String {
-        format!("RETURNS {}", self.as_str())
+    pub fn return_stmt(self, as_array: bool) -> String {
+        format!("RETURNS {}", self.as_str(as_array))
     }
 }
 
@@ -177,6 +182,10 @@ pub trait PgTypeInfo {
     fn pg_type() -> PgType;
     /// for distinguishing optional and non-optional arguments
     fn is_option() -> bool {
+        false
+    }
+    /// for distinguishing array argsuments
+    fn is_array() -> bool {
         false
     }
 }
@@ -254,5 +263,9 @@ where
 {
     fn pg_type() -> PgType {
         T::pg_type()
+    }
+
+    fn is_array() -> bool {
+        true
     }
 }
