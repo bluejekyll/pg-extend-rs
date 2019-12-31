@@ -29,9 +29,6 @@
 
 include!(concat!(env!("OUT_DIR"), "/postgres.rs"));
 
-#[cfg(all(unix, any(feature = "postgres-11", feature = "postgres-12")))]
-pub type bool_ = bool;
-
 #[cfg(target_os = "linux")]
 use std::os::raw::c_int;
 

@@ -5,6 +5,7 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
+#include "stdbool.h"
 #include "postgres.h"
 #include "postgres_ext.h"
 #include "access/relscan.h"

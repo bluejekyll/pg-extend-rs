@@ -367,7 +367,7 @@ struct DetoastedArrayWrapper {
     original_datum: *mut pg_sys::ArrayType,
     arr_type: *mut pg_sys::ArrayType,
     elements: *mut Datum,
-    nulls: *mut pg_sys::bool_,
+    nulls: *mut bool,
 }
 
 impl DetoastedArrayWrapper {
@@ -387,7 +387,7 @@ impl DetoastedArrayWrapper {
             original_datum,
             arr_type,
             elements: std::ptr::null_mut::<Datum>(),
-            nulls: std::ptr::null_mut::<pg_sys::bool_>(),
+            nulls: std::ptr::null_mut::<bool>(),
         })
     }
 }
