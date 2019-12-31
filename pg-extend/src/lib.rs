@@ -273,13 +273,20 @@ macro_rules! pg_create_stmt_bin {
         #[cfg(target_os = "macos")]
         const DYLIB_EXT: &str = "dylib";
 
-        #[cfg(target_os = "windows")]
-        const DYLIB_EXT: &str = "dll";
-
+        #[cfg(unix)]
         fn main() {
-            const LIB_NAME: &str = env!("CARGO_PKG_NAME");
+            let lib_name = env!("CARGO_PKG_NAME").replace("-", "_");
 
-            let lib_path = env::args().nth(1).unwrap_or_else(|| format!("target/release/lib{}.{}", LIB_NAME, DYLIB_EXT));
+            let lib_path = env::args().nth(1).unwrap_or(format!("target/release/lib{}.{}", lib_name, DYLIB_EXT));
+
+            $( println!("{}", lib::$func(&lib_path)); )*
+        }
+        
+        #[cfg(windows)]
+        fn main() {
+            let lib_name = env!("CARGO_PKG_NAME").replace("-", "_");
+
+            let lib_path = env::args().nth(1).unwrap_or(format!("target\\\\release\\\\{}.dll", lib_name));
 
             $( println!("{}", lib::$func(&lib_path)); )*
         }
