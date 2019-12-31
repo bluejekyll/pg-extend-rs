@@ -94,10 +94,7 @@ fn test_add_together() {
 fn test_sum_array() {
     test_in_db("adding", |mut conn| {
         let result = conn
-            .query(
-                "SELECT sum_array(ARRAY[1, 2, 3])",
-                &[],
-            )
+            .query("SELECT sum_array(ARRAY[1, 2, 3])", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
@@ -112,10 +109,7 @@ fn test_sum_array() {
 fn test_sum_small_array() {
     test_in_db("adding", |mut conn| {
         let result = conn
-            .query(
-                "SELECT sum_small_array(ARRAY[1, 2, 3]::int2[])",
-                &[],
-            )
+            .query("SELECT sum_small_array(ARRAY[1, 2, 3]::int2[])", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
@@ -130,10 +124,7 @@ fn test_sum_small_array() {
 fn test_sum_big_array() {
     test_in_db("adding", |mut conn| {
         let result = conn
-            .query(
-                "SELECT sum_big_array(ARRAY[1, 2, 3]::int8[])",
-                &[],
-            )
+            .query("SELECT sum_big_array(ARRAY[1, 2, 3]::int8[])", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
@@ -148,10 +139,7 @@ fn test_sum_big_array() {
 fn test_sum_float_array() {
     test_in_db("adding", |mut conn| {
         let result = conn
-            .query(
-                "SELECT sum_float_array(ARRAY[1.1, 2.2, 3.3])",
-                &[],
-            )
+            .query("SELECT sum_float_array(ARRAY[1.1, 2.2, 3.3])", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
@@ -166,10 +154,7 @@ fn test_sum_float_array() {
 fn test_sum_double_array() {
     test_in_db("adding", |mut conn| {
         let result = conn
-            .query(
-                "SELECT sum_double_array(ARRAY[1.1, 2.2, 3.3])",
-                &[],
-            )
+            .query("SELECT sum_double_array(ARRAY[1.1, 2.2, 3.3])", &[])
             .expect("query failed");
         assert_eq!(result.len(), 1);
 
