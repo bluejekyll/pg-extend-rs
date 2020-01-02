@@ -9,6 +9,7 @@
 
 use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
+use std::os::raw::c_char;
 use std::ptr::NonNull;
 
 use crate::native::Text;
@@ -213,8 +214,6 @@ impl<'s> TryFromPgDatum<'s> for String {
 // FIXME: this lifetime is wrong
 impl From<String> for PgDatum<'_> {
     fn from(value: String) -> Self {
-        use std::os::raw::c_char;
-
         let cstr = CString::new(value).expect("This shouldn't fail");
         let ptr: *const c_char = cstr.as_ptr();
 
@@ -231,8 +230,6 @@ impl<'s> TryFromPgDatum<'s> for CString {
         Self: 's,
         'mc: 's,
     {
-        use std::os::raw::c_char;
-
         if let Some(datum) = datum.0 {
             let text_val = datum as *const pg_sys::text;
 
@@ -255,8 +252,6 @@ impl<'s> TryFromPgDatum<'s> for CString {
 // FIXME: this lifetime is wrong
 impl From<CString> for PgDatum<'_> {
     fn from(value: CString) -> Self {
-        use std::os::raw::c_char;
-
         let ptr: *const c_char = value.as_ptr();
         let text = unsafe { crate::guard_pg(|| pg_sys::cstring_to_text(ptr)) };
 
@@ -273,8 +268,6 @@ impl<'s> TryFromPgDatum<'s> for PgAllocated<'s, CString> {
         Self: 's,
         'mc: 's,
     {
-        use std::os::raw::c_char;
-
         if let Some(datum) = datum.0 {
             let text_val = datum as *const pg_sys::text;
 
@@ -366,6 +359,131 @@ where
         match value {
             Some(value) => PgDatum::from(value),
             None => PgDatum(None, PhantomData),
+        }
+    }
+}
+
+struct DetoastedArrayWrapper {
+    original_datum: *mut pg_sys::ArrayType,
+    arr_type: *mut pg_sys::ArrayType,
+    elements: *mut Datum,
+    nulls: *mut bool,
+}
+
+impl DetoastedArrayWrapper {
+    unsafe fn detoasted(datum: Datum) -> Result<Self, &'static str> {
+        let datum = datum as *mut pg_sys::varlena;
+        if datum.is_null() {
+            return Err("datum was NULL");
+        }
+
+        #[allow(clippy::cast_ptr_alignment)]
+        let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
+
+        #[allow(clippy::cast_ptr_alignment)]
+        let original_datum = datum as *mut pg_sys::ArrayType;
+
+        Ok(DetoastedArrayWrapper {
+            original_datum,
+            arr_type,
+            elements: std::ptr::null_mut::<Datum>(),
+            nulls: std::ptr::null_mut::<bool>(),
+        })
+    }
+}
+
+impl Drop for DetoastedArrayWrapper {
+    fn drop(&mut self) {
+        if self.arr_type != self.original_datum {
+            unsafe {
+                if !self.arr_type.is_null() {
+                    pg_sys::pfree(self.arr_type as *mut _);
+                }
+                if !self.elements.is_null() {
+                    pg_sys::pfree(self.elements as *mut _);
+                }
+                if !self.nulls.is_null() {
+                    pg_sys::pfree(self.nulls as *mut _);
+                }
+            }
+        }
+    }
+}
+
+/// Inner trait used to limit which types can be used for direct casting
+#[doc(hidden)]
+pub trait PgPrimitiveDatum {}
+
+impl PgPrimitiveDatum for i16 {}
+impl PgPrimitiveDatum for i32 {}
+impl PgPrimitiveDatum for i64 {}
+impl PgPrimitiveDatum for f32 {}
+impl PgPrimitiveDatum for f64 {}
+
+impl<'s, T> TryFromPgDatum<'s> for &'s [T]
+where
+    T: 's + TryFromPgDatum<'s> + PgPrimitiveDatum,
+{
+    fn try_from<'mc>(_: &'mc PgAllocator, datum: PgDatum<'mc>) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            unsafe {
+                let mut detoasted_wrapper = DetoastedArrayWrapper::detoasted(datum)?;
+
+                if (*(detoasted_wrapper.arr_type)).ndim > 1 {
+                    return Err("argument must be empty or one-dimensional array");
+                }
+
+                let mut elmlen: pg_sys::int16 = 0;
+                let mut elmbyval = pgbool!(false);
+                let mut elmalign: ::std::os::raw::c_char = 0;
+
+                pg_sys::get_typlenbyvalalign(
+                    (*(detoasted_wrapper.arr_type)).elemtype,
+                    &mut elmlen,
+                    &mut elmbyval,
+                    &mut elmalign,
+                );
+
+                let mut nelems: i32 = 0;
+
+                pg_sys::deconstruct_array(
+                    detoasted_wrapper.arr_type,
+                    (*(detoasted_wrapper.arr_type)).elemtype,
+                    elmlen as i32,
+                    elmbyval,
+                    elmalign,
+                    &mut detoasted_wrapper.elements,
+                    &mut detoasted_wrapper.nulls,
+                    &mut nelems,
+                );
+
+                let datums = std::slice::from_raw_parts(
+                    detoasted_wrapper.elements as *const Datum,
+                    nelems as usize,
+                );
+
+                // This is where the conversion from `&[Datum]` is done to `&[T]` by a simple type casting,
+                // however, we should use `T::try_cast(&'mc PgAllocator, Datum)` to ignore nulls
+                let mem_size_datums = std::mem::size_of_val(datums);
+                let datums = if mem_size_datums == 0 {
+                    std::slice::from_raw_parts(datums.as_ptr() as *const T, 0)
+                } else {
+                    let mem_size_type = std::mem::size_of::<T>();
+                    assert_eq!(mem_size_datums % mem_size_type, 0);
+                    std::slice::from_raw_parts(
+                        datums.as_ptr() as *const T,
+                        mem_size_datums / mem_size_type,
+                    )
+                };
+
+                Ok(datums)
+            }
+        } else {
+            Err("datum was NULL")
         }
     }
 }
