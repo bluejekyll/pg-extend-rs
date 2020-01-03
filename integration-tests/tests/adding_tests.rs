@@ -89,3 +89,78 @@ fn test_add_together() {
         assert_eq!(col, 6);
     });
 }
+
+#[test]
+fn test_sum_array() {
+    test_in_db("adding", |mut conn| {
+        let result = conn
+            .query("SELECT sum_array(ARRAY[1, 2, 3])", &[])
+            .expect("query failed");
+        assert_eq!(result.len(), 1);
+
+        let row = result.get(0).expect("no rows returned");
+        let col: i32 = row.get(0);
+
+        assert_eq!(col, 6);
+    });
+}
+
+#[test]
+fn test_sum_small_array() {
+    test_in_db("adding", |mut conn| {
+        let result = conn
+            .query("SELECT sum_small_array(ARRAY[1, 2, 3]::int2[])", &[])
+            .expect("query failed");
+        assert_eq!(result.len(), 1);
+
+        let row = result.get(0).expect("no rows returned");
+        let col: i16 = row.get(0);
+
+        assert_eq!(col, 6);
+    });
+}
+
+#[test]
+fn test_sum_big_array() {
+    test_in_db("adding", |mut conn| {
+        let result = conn
+            .query("SELECT sum_big_array(ARRAY[1, 2, 3]::int8[])", &[])
+            .expect("query failed");
+        assert_eq!(result.len(), 1);
+
+        let row = result.get(0).expect("no rows returned");
+        let col: i64 = row.get(0);
+
+        assert_eq!(col, 6);
+    });
+}
+
+#[test]
+fn test_sum_float_array() {
+    test_in_db("adding", |mut conn| {
+        let result = conn
+            .query("SELECT sum_float_array(ARRAY[1.1, 2.2, 3.3])", &[])
+            .expect("query failed");
+        assert_eq!(result.len(), 1);
+
+        let row = result.get(0).expect("no rows returned");
+        let col: f32 = row.get(0);
+
+        assert_eq!(format!("{:.1}", col), "6.6".to_owned());
+    });
+}
+
+#[test]
+fn test_sum_double_array() {
+    test_in_db("adding", |mut conn| {
+        let result = conn
+            .query("SELECT sum_double_array(ARRAY[1.1, 2.2, 3.3])", &[])
+            .expect("query failed");
+        assert_eq!(result.len(), 1);
+
+        let row = result.get(0).expect("no rows returned");
+        let col: f64 = row.get(0);
+
+        assert_eq!(format!("{:.1}", col), "6.6".to_owned());
+    });
+}
