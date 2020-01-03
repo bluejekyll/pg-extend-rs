@@ -62,7 +62,7 @@ fn sum_float_array(arr: &[f32]) -> f32 {
     arr.iter().sum()
 }
 
-// Test array of f32
+// Test array of f64
 #[pg_extern]
 fn sum_double_array(arr: &[f64]) -> f64 {
     arr.iter().sum()

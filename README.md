@@ -42,14 +42,21 @@ First install Postgres. The build should be able to find the directory for the P
 
 `PG_INCLUDE_PATH=[/path/to/postgres]/include/server # e.g. /usr/local/pgsql/include/server`
 
-For the dynamic library to compile, your project should also have `.cargo/config` file with content:
+For the dynamic library to compile, your project should also have a `.cargo/config` file. The contents of this file varies based on your platform.
 
+### POSIX (aka `unix` family)
 ```toml
-[target.'cfg(unix)']
+[build]
 rustflags = "-C link-arg=-undefineddynamic_lookup"
+```
 
-[target.'cfg(windows)']
-rustflags = "-C link-arg=/FORCE"
+This informs the linker that some of the symbols for Postgres won't be available until runtime on the dynamic library load.
+
+### Windows
+Building for Windows is somewhat cumbersome as the MSVC linker requires you to set the location of `postgres.lib`, but this will depend both on your installation path as well as your PG version. Here's an example where the installation path is the default one for PG 12:
+```toml
+[build]
+rustflags = "-C link-arg=/FORCE:UNRESOLVED -C link-arg=C:/PROGRA~1/POSTGR~1/12/lib/postgres.lib"
 ```
 
 This informs the linker that some of the symbols for Postgres won't be available until runtime on the dynamic library load.

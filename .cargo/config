@@ -4,5 +4,8 @@
 [target.'cfg(unix)']
 rustflags = "-C link-arg=-undefineddynamic_lookup"
 
+# Uncomment the appropiate line depending on your PG version
 [target.'cfg(windows)']
-rustflags = "-C link-arg=/FORCE"
+#rustflags = "-C link-arg=/FORCE:UNRESOLVED -C link-arg=C:/PROGRA~1/POSTGR~1/10/lib/postgres.lib"
+#rustflags = "-C link-arg=/FORCE:UNRESOLVED -C link-arg=C:/PROGRA~1/POSTGR~1/11/lib/postgres.lib"
+#rustflags = "-C link-arg=/FORCE:UNRESOLVED -C link-arg=C:/PROGRA~1/POSTGR~1/12/lib/postgres.lib"
