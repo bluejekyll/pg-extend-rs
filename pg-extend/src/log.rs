@@ -114,7 +114,7 @@ impl std::fmt::Display for Level {
             Level::Warning => "WARNING",
             Level::Error => "ERROR",
             Level::Fatal => "FATAL",
-            Level::Panic => "PANIC"
+            Level::Panic => "PANIC",
         };
 
         write!(f, "{}", level)

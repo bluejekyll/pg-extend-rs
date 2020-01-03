@@ -16,7 +16,7 @@ use std::process::Command;
 fn main() {
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("postgres.rs");
 
-    let pg_config = env::var("PG_CONFIG").unwrap_or_else(|_| "pg_config".to_string());
+    let pg_config = env::var("PG_CONFIG").unwrap_or("pg_config".to_string());
 
     // Re-run this if wrapper.h changes
     println!("cargo:rerun-if-changed=wrapper.h");
@@ -163,7 +163,7 @@ fn include_dir(pg_config: &str) -> Result<String, env::VarError> {
     env::var("PG_INCLUDE_PATH").or_else(|err| {
         match Command::new(pg_config).arg("--includedir-server").output() {
             Ok(out) => Ok(String::from_utf8(out.stdout).unwrap().trim().to_string()),
-            Err(..) => Err(err),
+            Err(_) => Err(err),
         }
     })
 }

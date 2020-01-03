@@ -473,13 +473,9 @@ where
             } else {
                 let mem_size_type = std::mem::size_of::<T>();
                 assert_eq!(mem_size_datums % mem_size_type, 0);
+                let len = mem_size_datums / mem_size_type;
 
-                unsafe {
-                    std::slice::from_raw_parts(
-                        datums.as_ptr() as *const T,
-                        mem_size_datums / mem_size_type,
-                    )
-                }
+                unsafe { std::slice::from_raw_parts(datums.as_ptr() as *const T, len) }
             };
 
             Ok(datums)

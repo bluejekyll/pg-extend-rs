@@ -281,7 +281,7 @@ macro_rules! pg_create_stmt_bin {
 
             $( println!("{}", lib::$func(&lib_path)); )*
         }
-        
+
         #[cfg(windows)]
         fn main() {
             let lib_name = env!("CARGO_PKG_NAME").replace("-", "_");
