@@ -29,7 +29,7 @@ ALL_FEATURES = "--all-features"
 
 # Defaults are all for postgres version 12
 PG_VERSION = { source = "${CARGO_MAKE_PROFILE}", default_value = "12.1", mapping = { v10 = "10.11", v11 = "11.6" }}
-PG_PORT = { source = "${CARGO_MAKE_PROFILE}", default_value = "5444", mapping = { v10 = "5442", v11 = "5443" }}
+PGPORT = { source = "${CARGO_MAKE_PROFILE}", default_value = "5444", mapping = { v10 = "5442", v11 = "5443" }}
 PGSERVICE = { unset = true }
 PGHOST = "/tmp/"
 PGDATABASE = "postgres"
@@ -104,7 +104,7 @@ PG_TAR_PATH="${PG_DL_DIR}/postgres_${PG_VERSION}.tar"
 tar -xf ${PG_TAR_PATH:?}
 
 cd postgresql-${PG_VERSION}
-./configure --prefix=${PG_INSTALL_DIR} --with-pgport=${PG_PORT} --enable-cassert --without-readline
+./configure --prefix=${PG_INSTALL_DIR} --with-pgport=${PGPORT} --enable-cassert --without-readline
 make install
 
 cd ${current_dir:?}
@@ -159,7 +159,7 @@ script = [
 '''
 set -e
 
-if ${PG_BIN_DIR}/pg_isready -p ${PG_PORT} ; then exit 0 ; fi
+if ${PG_BIN_DIR}/pg_isready ; then exit 0 ; fi
 
 echo "Starting postgres ${PG_DB_DIR:?}"
 mkdir -p ${PG_DB_DIR:?}
@@ -167,9 +167,9 @@ mkdir -p ${PG_DB_DIR:?}
 cp ${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY:?}/integration-tests/postgresql.conf ${PG_DB_DIR:?}/
 mv ${PG_LOGPATH:?} ${PG_LOGPATH}.bak || true
 
-${PG_BIN_DIR}/pg_ctl start -D ${PG_DB_DIR:?} -l ${PG_LOGPATH:?} -o "-p ${PG_PORT:?}"
-${PG_BIN_DIR}/pg_isready -p ${PG_PORT} -t 5
-${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -o /dev/null -c "SELECT 1" # check the connection works
+${PG_BIN_DIR}/pg_ctl start -D ${PG_DB_DIR:?} -l ${PG_LOGPATH:?}
+${PG_BIN_DIR}/pg_isready -t 5
+${PG_BIN_DIR}/psql postgres -o /dev/null -c "SELECT 1" # check the connection works
 '''
 ]
 
@@ -183,8 +183,8 @@ script = [
 set -e
 
 echo "Creating DB ${POSTGRES_TEST_DB:?}"
-${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -o /dev/null -c "SELECT 1" # check the connection works
-${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -c "CREATE DATABASE ${POSTGRES_TEST_DB:?};" || true
+${PG_BIN_DIR}/psql postgres -o /dev/null -c "SELECT 1" # check the connection works
+${PG_BIN_DIR}/psql postgres -c "CREATE DATABASE ${POSTGRES_TEST_DB:?};" || true
 '''
 ]
 
@@ -198,8 +198,8 @@ script = [
 set -e
 
 echo "Dropping DB ${POSTGRES_TEST_DB:?}"
-${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -o /dev/null -c "SELECT 1" # check the connection works
-${PG_BIN_DIR}/psql postgres -p ${PG_PORT} -c "DROP DATABASE ${POSTGRES_TEST_DB:?};" || true
+${PG_BIN_DIR}/psql postgres -o /dev/null -c "SELECT 1" # check the connection works
+${PG_BIN_DIR}/psql postgres -c "DROP DATABASE ${POSTGRES_TEST_DB:?};" || true
 '''
 ]
 
@@ -213,7 +213,7 @@ script = [
 set -e
 
 echo "Stopping postgres ${PG_DB_DIR:?}"
-${PG_BIN_DIR}/pg_ctl stop -D ${PG_DB_DIR:?} -l ${PG_LOGPATH} -o "-p ${PG_PORT:?}" || true
+${PG_BIN_DIR}/pg_ctl stop -D ${PG_DB_DIR:?} -l ${PG_LOGPATH} || true
 '''
 ]
 
@@ -227,7 +227,7 @@ script = [
 set -e
 
 echo "Connection to postgres ${PG_DB_DIR:?} ${POSTGRES_TEST_DB:?}"
-${PG_BIN_DIR}/psql ${POSTGRES_TEST_DB:?} -p ${PG_PORT}
+${PG_BIN_DIR}/psql ${POSTGRES_TEST_DB:?}
 '''
 ]
 
