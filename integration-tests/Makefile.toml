@@ -12,7 +12,7 @@ CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
 [tasks.test-inner]
 description = "Run tests on all the crates, without restarting PG"
 dependencies = ["pg-create-db"]
-env = { POSTGRES_PORT = "${PG_PORT}" }
+env = { POSTGRES_PORT = "${PGPORT}" }
 command = "cargo"
 args = ["test", "--all-targets", "@@remove-empty(FEATURES)"]
 
