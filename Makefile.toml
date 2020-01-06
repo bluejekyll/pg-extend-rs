@@ -30,6 +30,10 @@ ALL_FEATURES = "--all-features"
 # Defaults are all for postgres version 12
 PG_VERSION = { source = "${CARGO_MAKE_PROFILE}", default_value = "12.1", mapping = { v10 = "10.11", v11 = "11.6" }}
 PG_PORT = { source = "${CARGO_MAKE_PROFILE}", default_value = "5444", mapping = { v10 = "5442", v11 = "5443" }}
+PGSERVICE = { unset = true }
+PGHOST = "/tmp/"
+PGDATABASE = "postgres"
+PSQLRC = "/dev/null" # This ensures that every psql invocation will skip the user's .psqlrc file"
 VER_FEATURES = { source = "${CARGO_MAKE_PROFILE}", default_value = "--features=postgres-12", mapping = { v10 = "--features=postgres-10", v11 = "--features=postgres-11" }}
 
 PG_DIR = "${TARGET_DIR}/postgres"
