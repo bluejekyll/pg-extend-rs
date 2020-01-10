@@ -307,6 +307,12 @@ dependencies = ["install-postgres"]
 command = "cargo"
 args = ["check", "--all-targets", "@@remove-empty(FEATURES)"]
 
+[tasks.doc]
+description = "Build docs for the extension"
+dependencies = ["install-postgres"]
+command = "cargo"
+args = ["doc", "@@remove-empty(FEATURES)"]
+
 [tasks.build]
 description = "Build all the crates"
 dependencies = ["install-postgres"]
