@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Level","Postgres logging Levels"]],"fn":[["log","log an error to Postgres"]]});

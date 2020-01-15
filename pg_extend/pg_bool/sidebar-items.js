@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Bool","This type provides conversions for all the possible types that Postgres might use internally for boolean values."]]});

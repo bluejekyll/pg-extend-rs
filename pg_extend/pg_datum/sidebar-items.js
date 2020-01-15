@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["PgDatum","A wrapper type for Postgres Datum's."]],"trait":[["TryFromPgDatum","A trait that allows for conversions between Postgres Datum types and Rust types."]]});

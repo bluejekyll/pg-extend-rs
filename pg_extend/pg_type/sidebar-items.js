@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["PgType","See https://www.postgresql.org/docs/11/xfunc-c.html#XFUNC-C-TYPE-TABLE"]],"trait":[["PgTypeInfo","Get the Postgres info for a type"]]});
