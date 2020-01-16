@@ -4,6 +4,11 @@
 //! and https://bitbucket.org/adunstan/rotfang-fdw/src/ca21c2a2e5fa6e1424b61bf0170adb3ab4ae68e7/src/rotfang_fdw.c?at=master&fileviewer=file-view-default
 //! For use with `#[pg_foreignwrapper]` from pg-extend-attr
 
+// FDW on PostgreSQL 11+ is not supported. :(
+// If anyone tries to enable "fdw" feature with newer Postgres, throw error.
+#![cfg(not(feature = "postgres-12"))]
+#![cfg(feature = "fdw")]
+
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -15,6 +20,17 @@ use crate::{error, pg_datum, pg_sys, pg_type, warn};
 /// preserved, it may be in the future.
 pub type Tuple<'mc> = HashMap<String, pg_datum::PgDatum<'mc>>;
 
+/// Struct used to wrap the FDW metadata
+#[derive(Debug)]
+pub struct ForeignTableMetadata {
+    /// Map that holds the options provided when creating the foreign server
+    pub server_opts: OptionMap,
+    /// Map that holds the options provided when creating the foreign table
+    pub table_opts: OptionMap,
+    /// Foreign table's name
+    pub table_name: String,
+}
+
 // TODO: can we avoid this box?
 /// The foreign data wrapper itself. The next() method of this object
 /// is responsible for creating row objects to return data.
@@ -24,16 +40,12 @@ pub trait ForeignData: Iterator<Item = Box<dyn ForeignRow>> {
     /// Called when a scan is initiated. Note that any heavy set up
     /// such as making connections or allocating memory should not
     /// happen in this step, but on the first call to next()
-    fn begin(server_opts: OptionMap, table_opts: OptionMap, table_name: String) -> Self;
+    fn begin(table_metadata: &ForeignTableMetadata) -> Self;
 
     /// If defined, these columns will always be present in the tuple. This can
     /// be useful for update and delete operations, which otherwise might be
     /// missing key fields.
-    fn index_columns(
-        _server_opts: OptionMap,
-        _table_opts: OptionMap,
-        _table_name: String,
-    ) -> Option<Vec<String>> {
+    fn index_columns(_table_metadata: &ForeignTableMetadata) -> Option<Vec<String>> {
         None
     }
 
@@ -184,15 +196,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
         node: *mut pg_sys::ForeignScanState,
         _eflags: std::os::raw::c_int,
     ) {
-        // TODO: real server options
-        let server_opts = HashMap::new();
-        // TODO: real table options
-        let table_opts = HashMap::new();
-
         let rel = *(*node).ss.ss_currentRelation;
-        let name = Self::get_table_name(&rel);
+        let table_metadata = Self::get_table_metadata(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts, name),
+            state: T::begin(&table_metadata),
         });
 
         (*node).fdw_state = Box::into_raw(wrapper) as *mut std::os::raw::c_void;
@@ -209,18 +216,61 @@ impl<T: ForeignData> ForeignWrapper<T> {
         }
     }
 
-    unsafe fn get_table_name(rel: &pg_sys::RelationData) -> String {
+    // TODO: We need a way to cache the resulting metadata to reduce the cost of this function
+    unsafe fn get_table_metadata(rel: &pg_sys::RelationData) -> ForeignTableMetadata {
         let table = pg_sys::GetForeignTable(rel.rd_id);
+        let server = pg_sys::GetForeignServer((*table).serverid);
+
+        let server_opts = Self::get_options((*server).options);
+        let table_opts = Self::get_options((*table).options);
         let raw_name = pg_sys::get_rel_name((*table).relid);
 
-        let cname = std::ffi::CStr::from_ptr(raw_name);
-        match cname.to_str() {
+        let table_name = match CStr::from_ptr(raw_name).to_str() {
             Ok(name) => name.into(),
             Err(err) => {
                 error!("Unicode error {}", err);
                 String::new()
             }
+        };
+
+        ForeignTableMetadata {
+            server_opts,
+            table_opts,
+            table_name,
         }
+    }
+
+    // WARNING: this function expects a `List` from either `ForeignTable::options` or `ForeignServer::options`.
+    // Do not use for anything else as it assumes that the list contains elements that can be casted to `DefElem`
+    // whose `arg` param can be casted to a string `Value`
+    unsafe fn get_options(options: *mut pg_sys::List) -> OptionMap {
+        if options.is_null() {
+            return HashMap::new();
+        }
+
+        let mut options_map = HashMap::new();
+        for i in 0..((*options).length) {
+            let ptr_value = pg_sys::list_nth(options, i) as *mut pg_sys::DefElem;
+
+            match CStr::from_ptr((*ptr_value).defname).to_str() {
+                Ok(key) => {
+                    #[allow(clippy::cast_ptr_alignment)]
+                    let arg = (*((*ptr_value).arg as *mut pg_sys::Value)).val.str;
+                    let value = match CStr::from_ptr(arg).to_str() {
+                        Ok(v) => v.into(),
+                        Err(err) => {
+                            error!("Unicode error {}", err);
+                            String::new()
+                        }
+                    };
+
+                    options_map.insert(key.into(), value);
+                }
+                Err(err) => error!("Unicode error {}", err),
+            }
+        }
+
+        options_map
     }
 
     fn get_field<'mc>(
@@ -354,14 +404,9 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _target_rte: *mut pg_sys::RangeTblEntry,
         target_relation: pg_sys::Relation,
     ) {
-        // TODO: real server options
-        let server_opts = HashMap::new();
-        // TODO: real table options
-        let table_opts = HashMap::new();
+        let table_metadata = Self::get_table_metadata(&*target_relation);
 
-        let table_name = Self::get_table_name(&*target_relation);
-
-        if let Some(keys) = T::index_columns(server_opts, table_opts, table_name) {
+        if let Some(keys) = T::index_columns(&table_metadata) {
             // Build a map of column names to attributes and column index
             let attrs: HashMap<String, (&pg_sys::Form_pg_attribute, usize)> =
                 Self::tupdesc_attrs(&*(*target_relation).rd_att)
@@ -415,15 +460,10 @@ impl<T: ForeignData> ForeignWrapper<T> {
         _subplan_index: i32,
         _eflags: i32,
     ) {
-        // TODO: real server options
-        let server_opts = HashMap::new();
-        // TODO: real table options
-        let table_opts = HashMap::new();
-
         let rel = *(*rinfo).ri_RelationDesc;
-        let name = Self::get_table_name(&rel);
+        let table_metadata = Self::get_table_metadata(&rel);
         let wrapper = Box::new(Self {
-            state: T::begin(server_opts, table_opts, name),
+            state: T::begin(&table_metadata),
         });
 
         (*rinfo).ri_FdwState = Box::into_raw(wrapper) as *mut std::ffi::c_void;

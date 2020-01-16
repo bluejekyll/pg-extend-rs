@@ -17,13 +17,23 @@ license = "MIT/Apache-2.0"
 build = "build.rs"
 
 [features]
-default = ["postgres-10"]
-postgres-9 = []
-postgres-10 = []
-postgres-11 = []
+default = []
+
+# Enable Foreign Data wrappers support
+fdw = []
+# We use feature flags to dictate which sets of PG features we support.
+#   The build.rs script will set a feature flag rustc, but this does not enable the dependencies.
+#   For that, build scripts that want to explcitly enable supported features in each
+#   version, should pass the feature flag explicity.
+# Each of these should list all features supported by that version of PG.
+postgres-9 = ["fdw"]
+postgres-10 = ["fdw"]
+postgres-11 = ["fdw"]
+postgres-12 = []
 
 [dependencies]
+cfg-if = "0.1.10"
 
 [build-dependencies]
-bindgen = "0.48"
-clang = "0.21"
+bindgen = "0.52"
+clang = "0.23"

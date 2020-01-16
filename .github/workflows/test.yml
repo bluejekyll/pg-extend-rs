@@ -1,0 +1,129 @@
+name: test
+
+on:
+  push:
+    branches:
+      - master
+      - release/**
+  pull_request:
+    branches:
+      - master
+      - release/**
+  schedule:
+    - cron:  '0 3 * * 4'
+
+jobs:
+  postgres:
+    name: postgres
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        #os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
+        version: ["v10", "v11", "v12"]
+    steps:
+    - uses: actions/checkout@v1
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: '0.24.2'
+
+    - name: target/postgres cache
+      uses: actions/cache@v1
+      with:
+        path: target/postgres
+        key: ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+    
+    - name: cargo make matrix.version
+      run: cargo make -p ${{ matrix.version }} install-postgres
+
+
+  ## Run all default oriented feature sets across all platforms.
+  platform-matrix:
+    name: platform
+    runs-on: ${{ matrix.os }}
+    needs: postgres
+    strategy:
+      matrix:
+        #os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
+        feature: [no-default-features, default-features, all-features]
+        version: ["v10", "v11", "v12"]
+    steps:
+    - uses: actions/checkout@v1
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: '0.24.2'
+
+    - name: target/postgres cache
+      uses: actions/cache@v1
+      with:
+        path: target/postgres
+        key: ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+
+    - name: cargo make matrix.feature
+      run: cargo make -p ${{ matrix.version }} ${{ matrix.feature }}
+
+  ## Execute the clippy checks
+  cleanliness:
+    name: cleanliness
+    runs-on: ubuntu-latest
+    needs: postgres
+    env:
+      version: v11
+    steps:
+    - uses: actions/checkout@v1
+
+    # not using the cargo cache here, since this differs significantly
+    - name: cargo-all cache
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo
+        key: ${{ runner.os }}-cargo-all-${{ hashFiles('**/Cargo.toml') }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-all-${{ hashFiles('**/Cargo.toml') }}
+          ${{ runner.os }}-cargo-all
+          ${{ runner.os }}-cargo
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: rustfmt, clippy
+        override: true
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: '0.24.2'
+
+    - name: target/postgres cache
+      uses: actions/cache@v1
+      with:
+        path: target/postgres
+        key: ${{ runner.os }}-postgres-${{ env.version }}-${{ hashFiles('**/Makefile.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-postgres-${{ env.version }}-${{ hashFiles('**/Makefile.toml') }}
+
+    # Clippy
+    - name: cargo make clippy -p ${{ env.version }}
+      run: cargo make clippy -p ${{ env.version }}
+    # Rustfmt
+    - name: cargo make fmt -p ${{ env.version }}
+      run: cargo make fmt -p ${{ env.version }}
+    # Audit
+    - name: cargo audit -p ${{ env.version }}
+      run: cargo make audit -p ${{ env.version }}

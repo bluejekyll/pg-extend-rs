@@ -10,7 +10,7 @@ extern crate pg_extern_attr;
 
 use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_datum::TryFromPgDatum;
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple, ForeignTableMetadata};
 use pg_extend::{info, pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
@@ -62,7 +62,7 @@ impl ForeignRow for MyRow {
 }
 
 impl Iterator for CacheFDW {
-    type Item = Box<ForeignRow>;
+    type Item = Box<dyn ForeignRow>;
     fn next(&mut self) -> Option<Self::Item> {
         match self.inner.pop() {
             None => None,
@@ -75,7 +75,7 @@ impl Iterator for CacheFDW {
 }
 
 impl ForeignData for CacheFDW {
-    fn begin(_sopts: OptionMap, _topts: OptionMap, _table_name: String) -> Self {
+    fn begin(_table_metadata: &ForeignTableMetadata) -> Self {
         let c = get_cache().read().unwrap();
         let vecs = c.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
@@ -99,11 +99,11 @@ CREATE FOREIGN TABLE {schema}.mytable (
         )])
     }
 
-    fn index_columns(_sopts: OptionMap, _topts: OptionMap, _tn: String) -> Option<Vec<String>> {
+    fn index_columns(_table_metadata: &ForeignTableMetadata) -> Option<Vec<String>> {
         Some(vec!["key".into()])
     }
 
-    fn update(&self, new_row: &Tuple, indices: &Tuple) -> Option<Box<ForeignRow>> {
+    fn update(&self, new_row: &Tuple, indices: &Tuple) -> Option<Box<dyn ForeignRow>> {
         let mut c = get_cache().write().unwrap();
         let key = indices.get("key");
         let value = new_row.get("value");
@@ -126,12 +126,12 @@ CREATE FOREIGN TABLE {schema}.mytable (
         }
     }
 
-    fn insert(&self, new_row: &Tuple) -> Option<Box<ForeignRow>> {
+    fn insert(&self, new_row: &Tuple) -> Option<Box<dyn ForeignRow>> {
         // Since we only use one field from each, these methods are equivalent
         self.update(new_row, new_row)
     }
 
-    fn delete(&self, indices: &Tuple) -> Option<Box<ForeignRow>> {
+    fn delete(&self, indices: &Tuple) -> Option<Box<dyn ForeignRow>> {
         // TODO: switch to correct memory context
         let memory_context = PgAllocator::current_context();
 

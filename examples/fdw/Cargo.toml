@@ -13,4 +13,4 @@ path = "src/bin.rs"
 
 [dependencies]
 pg-extern-attr = { version = "*", path = "../../pg-extern-attr" }
-pg-extend = { version = "*", path = "../../pg-extend" }
+pg-extend = { version = "*", path = "../../pg-extend", features = ["fdw"] }

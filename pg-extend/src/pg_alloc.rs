@@ -55,6 +55,10 @@ impl PgAllocator {
     }
 
     /// Same as exec, but additionally wraps in with pg_guard
+    ///
+    /// # Safety
+    ///
+    /// This has the same safety requirements as `guard_pg`
     pub unsafe fn exec_with_guard<R, F: FnOnce() -> R>(&self, f: F) -> R {
         use crate::guard_pg;
 
@@ -89,8 +93,12 @@ where
     /// Creates a new Allocated type from Postgres.
     ///
     /// This does not allocate, it associates the lifetime of the Allocator to this type.
-    ///   it protects protects the wrapped type from being dropped by Rust, and uses the
+    ///   it protects the wrapped type from being dropped by Rust, and uses the
     ///   associated Postgres Allocator for freeing the backing memory.
+    ///
+    /// # Safety
+    ///
+    /// The memory referenced by `ptr` must have been allocated withinn the associated `memory_context`.
     pub unsafe fn from_raw(
         memory_context: &'mc PgAllocator,
         ptr: *mut <T as RawPtr>::Target,
@@ -104,6 +112,7 @@ where
     }
 
     /// This consumes the inner pointer
+    #[allow(clippy::missing_safety_doc)]
     pub unsafe fn take_ptr(&mut self) -> *mut <T as RawPtr>::Target {
         let inner = self
             .inner
@@ -161,9 +170,17 @@ pub trait RawPtr {
     type Target;
 
     /// Instantiate the type from the pointer
+    ///
+    /// # Safety
+    ///
+    /// Implementors should validate that all conversions into Rust wrapper type are within MemoryContexts
     unsafe fn from_raw(ptr: *mut Self::Target) -> Self;
 
     /// Consume this and return the pointer.
+    ///
+    /// # Safety
+    ///
+    /// After calling `into_raw` there should be no other pointers to the data behind the pointer.
     unsafe fn into_raw(self) -> *mut Self::Target;
 
     /// Returns a pointer to this

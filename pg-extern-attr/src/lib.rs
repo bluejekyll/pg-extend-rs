@@ -10,11 +10,9 @@
 extern crate proc_macro;
 extern crate proc_macro2;
 #[macro_use]
-extern crate syn;
-#[macro_use]
 extern crate quote;
-
-mod lifetime;
+#[macro_use]
+extern crate syn;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
@@ -22,6 +20,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
 use syn::Type;
+
+mod lifetime;
 
 /// A type that represents that PgAllocator is an argument to the Rust function.
 type HasPgAllocatorArg = bool;
@@ -50,12 +50,8 @@ fn get_arg_types(inputs: &Punctuated<syn::FnArg, Comma>) -> Vec<syn::Type> {
 
     for arg in inputs.iter() {
         let arg_type: &syn::Type = match *arg {
-            syn::FnArg::SelfRef(_) | syn::FnArg::SelfValue(_) => {
-                panic!("self functions not supported")
-            }
-            syn::FnArg::Inferred(_) => panic!("inferred function parameters not supported"),
-            syn::FnArg::Captured(ref captured) => &captured.ty,
-            syn::FnArg::Ignored(ref ty) => ty,
+            syn::FnArg::Receiver(_) => panic!("self functions not supported"),
+            syn::FnArg::Typed(ref ty) => &ty.ty,
         };
 
         // if it's carrying a lifetime, we're going to replace it with the annonymous one.
@@ -108,14 +104,11 @@ fn extract_arg_data(arg_types: &[Type]) -> (TokenStream, HasPgAllocatorArg) {
         let arg_error = format!("unsupported function argument type for {}", arg_name);
 
         let get_arg = quote_spanned!( arg_type.span()=>
+            let datum = args.next().expect("wrong number of args passed into get_args for args?");
             let #arg_name: #arg_type = unsafe {
                 pg_extend::pg_datum::TryFromPgDatum::try_from(
                     &memory_context,
-                    pg_extend::pg_datum::PgDatum::from_raw(
-                        &memory_context,
-                        *args.next().expect("wrong number of args passed into get_args for args?"),
-                        args_null.next().expect("wrong number of args passed into get_args for args_null?")
-                    ),
+                    pg_extend::pg_datum::PgDatum::from_option(&memory_context, datum),
                 )
                 .expect(#arg_error)
             };
@@ -169,7 +162,7 @@ fn sql_param_types(arg_types: &[Type]) -> (TokenStream, bool) {
         let sql_name = Ident::new(&format!("sql_{}", i), arg_type.span());
 
         let sql_param = quote!(
-            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(),
+            #sql_name = pg_extend::pg_type::PgType::from_rust::<#arg_type>().as_str(<#arg_type>::is_array()),
         );
 
         tokens.extend(sql_param);
@@ -187,7 +180,7 @@ fn sql_return_type(outputs: &syn::ReturnType) -> TokenStream {
         syn::ReturnType::Type(_, ty) => quote!(#ty),
     };
 
-    quote_spanned!(ty.span() => pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt())
+    quote_spanned!(ty.span() => pg_extend::pg_type::PgType::from_rust::<#ty>().return_stmt(<#ty>::is_array()))
 }
 
 /// Returns Rust code to figure out if the function takes optional arguments. Functions with
@@ -297,22 +290,19 @@ fn get_info_fn(func_name: &syn::Ident) -> TokenStream {
 
 fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
     let func = if let syn::Item::Fn(func) = item {
-        func
+        &func.sig
     } else {
         panic!("annotation only supported on functions");
     };
 
     let func_name = &func.ident;
-    let func_decl = &func.decl;
 
-    if func_decl.variadic.is_some() {
+    if func.variadic.is_some() {
         panic!("variadic functions (...) not supported")
     }
 
-    //let generics = &func_decl.generics;
-    let inputs = &func_decl.inputs;
-    let output = &func_decl.output;
-    //let func_block = &func.block;
+    let inputs = &func.inputs;
+    let output = &func.output;
 
     // declare the function
     let mut function = TokenStream::default();
@@ -344,7 +334,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
             // All params will be in the "current" memory context at the call-site
             let memory_context = PgAllocator::current_context();
 
-            let func_info: &mut pg_extend::pg_sys::FunctionCallInfoData = unsafe {
+            let func_info = unsafe {
                 func_call_info
                     .as_mut()
                     .expect("func_call_info was unexpectedly NULL")
@@ -353,7 +343,7 @@ fn impl_info_for_fn(item: &syn::Item) -> TokenStream {
             // guard the Postgres process against the panic, and give us an oportunity to cleanup
             let panic_result = panic::catch_unwind(|| {
                 // extract the argument list
-                let (mut args, mut args_null) = pg_extend::get_args(func_info);
+                let mut args = pg_extend::get_args(func_info);
 
                 // arbitrary Datum conversions occur here, and could panic
                 //   so this is inside the catch unwind

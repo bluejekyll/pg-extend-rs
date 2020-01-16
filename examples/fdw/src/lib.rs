@@ -8,7 +8,7 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, ForeignTableMetadata};
 use pg_extend::{pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
@@ -44,7 +44,7 @@ impl ForeignRow for MyRow {
 }
 
 impl Iterator for DefaultFDW {
-    type Item = Box<ForeignRow>;
+    type Item = Box<dyn ForeignRow>;
     fn next(&mut self) -> Option<Self::Item> {
         self.i += 1;
         if self.i > 5 {
@@ -56,7 +56,7 @@ impl Iterator for DefaultFDW {
 }
 
 impl ForeignData for DefaultFDW {
-    fn begin(_sopts: OptionMap, _topts: OptionMap, _table_name: String) -> Self {
+    fn begin(_table_metadata: &ForeignTableMetadata) -> Self {
         DefaultFDW { i: 0 }
     }
 
