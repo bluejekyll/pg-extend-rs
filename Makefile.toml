@@ -24,6 +24,9 @@ CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY = "${TARGET_DIR}/kcov"
 CARGO_MAKE_KCOV_DOWNLOAD_DIRECTORY = "${TARGET_DIR}/kcov-dl"
 CARGO_MAKE_KCOV_VERSION = "37"
 
+# for doc gh-page publishing, should not be a path under the current git tree
+WORKTREE_DIR="/tmp/pg-extend-doc"
+
 # This can be overriden (e.g. in pg-extend crate) to specify a more limited set of features
 ALL_FEATURES = "--all-features"
 
@@ -280,6 +283,18 @@ rm -rf ${PG_DB_DIR:?}
 '''
 ]
 
+[tasks.clean-worktree]
+description = "Cleans up the gh-pages worktree used for publishing docs"
+workspace = false
+condition = { env_set = ["WORKTREE_DIR"]}
+script_runner = "@shell"
+script = [
+'''
+rm -rf ${WORKTREE_DIR}
+git worktree prune
+'''
+]
+
 [tasks.clean-all]
 description = "Remove only the current workspace member"
 workspace = false
@@ -307,11 +322,18 @@ dependencies = ["install-postgres"]
 command = "cargo"
 args = ["check", "--all-targets", "@@remove-empty(FEATURES)"]
 
-[tasks.doc]
+[tasks.inner_doc]
 description = "Build docs for the extension"
 dependencies = ["install-postgres"]
+private = true
 command = "cargo"
-args = ["doc", "@@remove-empty(FEATURES)"]
+args = ["doc", "--no-deps", "@@remove-empty(FEATURES)"]
+
+[tasks.doc]
+description = "Build docs for the extension"
+workspace = true
+env = { CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = "integration-tests;integration-tests/*;examples;examples/*"}
+run_task = { name = "inner_doc", fork = true }
 
 [tasks.build]
 description = "Build all the crates"
@@ -410,3 +432,39 @@ description = "publish next release"
 workspace = false
 env = { CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = "integration-tests/*;examples/*"}
 run_task = { name = "inner_publish", fork = true }
+
+[tasks.publish-docs-to-github]
+description = "publishes the docs to github pages"
+workspace = false
+private = true
+condition = { env_set = ["WORKTREE_DIR", "TARGET_DIR"], files_net_exist = ["${WORKTREE_DIR}"]}
+script_runner = "@shell"
+script = [
+'''
+echo "===> Publishing docs"
+git --version
+
+# create a working tree area for the gh-pages
+TARGET_DOC_DIR=${TARGET_DIR:?}/doc
+
+git worktree add ${WORKTREE_DIR} gh-pages
+rm -rf ${WORKTREE_DIR:?}/*
+cp -rp ${TARGET_DOC_DIR:?}/* ${WORKTREE_DIR:?}
+
+cd ${WORKTREE_DIR:?}
+git add -A
+git diff --staged --quiet || (git commit -m "deployed on $(date)" && git push origin gh-pages)
+'''
+]
+
+
+[tasks.inner_publish-docs]
+description = "publish next release"
+private = true
+workspace = false
+run_task = { name = "publish-docs-to-github", fork = true }
+
+[tasks.publish-docs]
+description = "publish docs to github pages"
+workspace = false
+dependencies = ["doc", "inner_publish-docs", "clean-worktree"]
