@@ -209,7 +209,7 @@ fn get_postgres_feature_version(pg_include: String) -> &'static str {
         .expect("couldn't find string literal for major version");
 
     let version = string_literal.get_display_name().unwrap().replace("\"", "");
-    let version = version.split(".").collect::<Vec<_>>();
+    let version = version.split('.').collect::<Vec<_>>();
 
     match &version[..] {
         ["9", _] => "postgres-9",
