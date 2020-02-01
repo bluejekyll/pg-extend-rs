@@ -8,79 +8,79 @@ use crate::native::Text;
 /// though, that is converting from NetworkByte order, and this is all NativeByte order?
 #[derive(Clone, Copy)]
 pub enum PgType {
-    /// abstime 	AbsoluteTime 	utils/nabstime.h
+    /// abstime  AbsoluteTime  utils/nabstime.h
     AbsoluteTime,
-    /// bigint (int8) 	int64 	postgres.h
+    /// bigint (int8)  int64  postgres.h
     BigInt,
-    /// bigint (int8) 	int64 	postgres.h
+    /// bigint (int8)  int64  postgres.h
     Int8,
-    /// boolean 	bool 	postgres.h (maybe compiler built-in)
+    /// boolean  bool  postgres.h (maybe compiler built-in)
     Boolean,
-    /// box 	BOX* 	utils/geo_decls.h
+    /// box  BOX*  utils/geo_decls.h
     GeoBox,
-    /// bytea 	bytea* 	postgres.h
+    /// bytea  bytea*  postgres.h
     ByteA,
-    /// "char" 	char 	(compiler built-in)
+    /// "char"  char  (compiler built-in)
     Char,
-    /// character 	BpChar* 	postgres.h
+    /// character  BpChar*  postgres.h
     Character,
-    /// cid 	CommandId 	postgres.h
+    /// cid  CommandId  postgres.h
     CommandId,
-    /// date 	DateADT 	utils/date.h
+    /// date  DateADT  utils/date.h
     Date,
-    /// smallint (int2) 	int16 	postgres.h
+    /// smallint (int2)  int16  postgres.h
     SmallInt,
-    /// smallint (int2) 	int16 	postgres.h
+    /// smallint (int2)  int16  postgres.h
     Int2,
-    /// int2vector 	int2vector* 	postgres.h
+    /// int2vector  int2vector*  postgres.h
     Int2Vector,
-    /// integer (int4) 	int32 	postgres.h
+    /// integer (int4)  int32  postgres.h
     Integer,
-    /// integer (int4) 	int32 	postgres.h
+    /// integer (int4)  int32  postgres.h
     Int4,
-    /// real (float4) 	float4* 	postgres.h
+    /// real (float4)  float4*  postgres.h
     Real,
-    /// real (float4) 	float4* 	postgres.h
+    /// real (float4)  float4*  postgres.h
     Float4,
-    /// double precision (float8) 	float8* 	postgres.h
+    /// double precision (float8)  float8*  postgres.h
     DoublePrecision,
-    /// double precision (float8) 	float8* 	postgres.h
+    /// double precision (float8)  float8*  postgres.h
     Float8,
-    /// interval 	Interval* 	datatype/timestamp.h
+    /// interval  Interval*  datatype/timestamp.h
     Interval,
-    /// lseg 	LSEG* 	utils/geo_decls.h
+    /// lseg  LSEG*  utils/geo_decls.h
     Lseg,
-    /// name 	Name 	postgres.h
+    /// name  Name  postgres.h
     Name,
-    /// oid 	Oid 	postgres.h
+    /// oid  Oid  postgres.h
     Oid,
-    /// oidvector 	oidvector* 	postgres.h
+    /// oidvector  oidvector*  postgres.h
     OidVector,
-    /// path 	PATH* 	utils/geo_decls.h
+    /// path  PATH*  utils/geo_decls.h
     Path,
-    /// point 	POINT* 	utils/geo_decls.h
+    /// point  POINT*  utils/geo_decls.h
     Point,
-    /// regproc 	regproc 	postgres.h
+    /// regproc  regproc  postgres.h
     RegProc,
-    /// reltime 	RelativeTime 	utils/nabstime.h
+    /// reltime  RelativeTime  utils/nabstime.h
     RelativeTime,
-    /// text 	text* 	postgres.h
+    /// text  text*  postgres.h
     Text,
-    /// tid 	ItemPointer 	storage/itemptr.h
+    /// tid  ItemPointer  storage/itemptr.h
     ItemPointer,
-    /// time 	TimeADT 	utils/date.h
+    /// time  TimeADT  utils/date.h
     Time,
-    /// time with time zone 	TimeTzADT 	utils/date.h
+    /// time with time zone  TimeTzADT  utils/date.h
     TimeWithTimeZone,
-    /// timestamp 	Timestamp* 	datatype/timestamp.h
+    /// timestamp  Timestamp*  datatype/timestamp.h
     Timestamp,
-    /// tinterval 	TimeInterval 	utils/nabstime.h
+    /// tinterval  TimeInterval  utils/nabstime.h
     TimeInterval,
-    /// varchar 	VarChar* 	postgres.h
+    /// varchar  VarChar*  postgres.h
     VarChar,
     /// void
     Void,
-    /// xid 	TransactionId 	postgres.h
+    /// xid  TransactionId  postgres.h
     TransactionId,
 }
 
