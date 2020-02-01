@@ -9,8 +9,10 @@
 //!
 //! These shoudl be near zero overhead types, exposed from Postgres and able to be directly used.
 
+mod bytea;
 mod text;
 mod varlena;
 
+pub use bytea::ByteA;
 pub use text::Text;
 pub(crate) use varlena::VarLenA;

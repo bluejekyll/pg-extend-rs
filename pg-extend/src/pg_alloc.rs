@@ -203,6 +203,9 @@ impl RawPtr for std::ffi::CString {
     }
 }
 
+// FIXME
+// `pg_sys::text` aliases `varlena`. This impl covers all `varlena` types, including `bytea`.
+// Given that `Target` is an associated type, we are stuck with `pg_sys::text` for everything.
 impl RawPtr for NonNull<pg_sys::text> {
     type Target = pg_sys::text;
 
