@@ -116,7 +116,7 @@ pub fn register_panic_handler() {
         //   the fence is to make sure the longjmp is not reodered.
         compiler_fence(Ordering::SeqCst);
         if let Some(panic_context) = info.payload().downcast_ref::<JumpContext>() {
-            // WARNING: do not set this level above Notice (ERROR, FATAL, PANIC), as it will calse
+            // WARNING: do not set this level above Notice (ERROR, FATAL, PANIC), as it will cause
             //   the following longjmp to execute.
             notice!("continuing longjmp: {}", info);
 
