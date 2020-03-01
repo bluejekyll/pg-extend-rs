@@ -31,7 +31,7 @@ impl PgAllocator {
         unsafe { Self::from_raw(pg_sys::CurrentMemoryContext) }
     }
 
-    /// Sets this PgAllocator as the current memory context, and then resets it to the orevious
+    /// Sets this PgAllocator as the current memory context, and then resets it to the previous
     ///  after executing the function.
     pub fn exec<R, F: FnOnce() -> R>(&self, f: F) -> R {
         let previous_context;
@@ -143,7 +143,7 @@ impl<'mc, T: 'mc + RawPtr> Deref for PgAllocated<'mc, T> {
 
 impl<'mc, T: 'mc + RawPtr> DerefMut for PgAllocated<'mc, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // TODO: instead of requiring Option here, swap the opinter with 0, and allow free on 0, which is safe.
+        // TODO: instead of requiring Option here, swap the pointer with 0, and allow free on 0, which is safe.
         self.inner
             .as_mut()
             .expect("invalid None while PgAllocated is live")
