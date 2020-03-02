@@ -32,7 +32,7 @@ impl PgAllocator {
     }
 
     /// Sets this PgAllocator as the current memory context, and then resets it to the previous
-    ///  after executing the function.
+    /// after executing the function.
     pub fn exec<R, F: FnOnce() -> R>(&self, f: F) -> R {
         let previous_context;
         unsafe {
