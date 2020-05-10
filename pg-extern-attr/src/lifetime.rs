@@ -5,8 +5,6 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use syn;
-
 fn lifetime_to_anon(lifetime: &mut syn::Lifetime) {
     let anon_lifetime = syn::Ident::new("_", lifetime.ident.span());
     lifetime.ident = anon_lifetime;
