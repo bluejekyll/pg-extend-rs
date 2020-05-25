@@ -20,7 +20,7 @@ proc-macro = true
 [dependencies]
 syn = { version = "1.0.25", features = ["extra-traits", "full", "fold", "parsing"] }
 quote = "1.0.6"
-proc-macro2 = "1.0.8"
+proc-macro2 = "1.0.17"
 
 [dev-dependencies]
 pg-extend = { path = "../pg-extend" }
