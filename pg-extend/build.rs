@@ -23,6 +23,7 @@ fn main() {
     println!("cargo:rerun-if-changed=pg_majorversion.h");
 
     let pg_include = include_dir(&pg_config)
+        .map_err(|e| println!("WARNING: failed to run pg_config: {}", e))
         .expect("set environment variable PG_INCLUDE_PATH to the Postgres install include dir, e.g. /var/lib/pgsql/include/server");
 
     // these cause duplicate definition problems on linux
