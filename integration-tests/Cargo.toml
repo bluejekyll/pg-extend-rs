@@ -15,6 +15,6 @@ readme = "README.md"
 license = "MIT/Apache-2.0"
 
 [dependencies]
-cargo = "0.44"
+cargo = "0.45"
 postgres = "0.17"
 tempfile = "3.1"
