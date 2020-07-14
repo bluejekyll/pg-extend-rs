@@ -36,4 +36,4 @@ cfg-if = "0.1.10"
 
 [build-dependencies]
 bindgen = "0.53"
-clang = "0.23"
+clang = "0.24"
