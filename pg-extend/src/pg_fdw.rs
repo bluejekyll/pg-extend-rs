@@ -306,23 +306,31 @@ impl<T: ForeignData> ForeignWrapper<T> {
         let mut t = HashMap::new();
 
         for i in 0..(attrs.len().min(data.len())) {
-            let name = Self::name_to_string(unsafe { (*attrs[i]).attname });
+            let name = Self::name_to_string((attrs[i]).attname);
             let data = unsafe { pg_datum::PgDatum::from_raw(memory_context, data[i], isnull[i]) };
             t.insert(name, data);
         }
 
         t
     }
-
-    unsafe fn tupdesc_attrs(tupledesc: &pg_sys::tupleDesc) -> &[pg_sys::Form_pg_attribute] {
+ 
+    unsafe fn tupdesc_attrs(tupledesc: &pg_sys::tupleDesc) -> &[pg_sys::FormData_pg_attribute] {
+        
         #[cfg(feature = "postgres-11")]
         #[allow(clippy::cast_ptr_alignment)]
-        let attrs = (*tupledesc).attrs.as_ptr() as *const _;
+        {
+            let attrs  = (*tupledesc).attrs.as_ptr();
+            std::slice::from_raw_parts(attrs, (*tupledesc).natts as usize)    
+        }
         #[cfg(not(feature = "postgres-11"))]
-        let attrs = (*tupledesc).attrs;
+        {
+            let attrs = (*tupledesc).attrs;
+            std::slice::from_raw_parts(*attrs, (*tupledesc).natts as usize)
+        }
+        
 
-        std::slice::from_raw_parts(attrs, (*tupledesc).natts as usize)
     }
+    
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
     ///	EOF.
@@ -351,7 +359,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
             let mut isnull = vec![pgbool!(true); attrs.len()];
             for (i, pattr) in attrs.iter().enumerate() {
                 // TODO: There must be a better way to do this?
-                let result = Self::get_field(&memory_context, &(**pattr), &(*row));
+                let result = Self::get_field(&memory_context, &(*pattr), &(*row));
                 match result {
                     Err(err) => {
                         warn!("{}", err);
@@ -408,11 +416,11 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         if let Some(keys) = T::index_columns(&table_metadata) {
             // Build a map of column names to attributes and column index
-            let attrs: HashMap<String, (&pg_sys::Form_pg_attribute, usize)> =
+            let attrs: HashMap<String, (&pg_sys::FormData_pg_attribute, usize)> =
                 Self::tupdesc_attrs(&*(*target_relation).rd_att)
                     .iter()
                     .enumerate()
-                    .map(|(idx, rel)| (Self::name_to_string((**rel).attname), (rel, idx)))
+                    .map(|(idx, rel)| (Self::name_to_string((rel).attname), (rel, idx)))
                     .collect();
 
             for key in keys {
@@ -428,8 +436,8 @@ impl<T: ForeignData> ForeignWrapper<T> {
                 let var = pg_sys::makeVar(
                     (*parsetree).resultRelation as u32,
                     *idx as i16 + 1, // points to the position in the tuple, 1-indexed
-                    (*attr).atttypid,
-                    (*attr).atttypmod,
+                    (attr).atttypid,
+                    (attr).atttypmod,
                     0 as pg_sys::Oid, // InvalidOid
                     0,
                 );
