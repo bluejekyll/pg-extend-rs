@@ -333,7 +333,7 @@ impl<T: ForeignData> ForeignWrapper<T> {
     
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
-    ///	EOF.
+    /// EOF.
     /// Fetch one row from the foreign
     ///  (the node's ScanTupleSlot should be used for this purpose).
     ///  Return NULL if no more rows are available.
