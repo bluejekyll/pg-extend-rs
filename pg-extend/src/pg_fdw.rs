@@ -313,24 +313,20 @@ impl<T: ForeignData> ForeignWrapper<T> {
 
         t
     }
- 
+
     unsafe fn tupdesc_attrs(tupledesc: &pg_sys::tupleDesc) -> &[pg_sys::FormData_pg_attribute] {
-        
         #[cfg(feature = "postgres-11")]
         #[allow(clippy::cast_ptr_alignment)]
         {
-            let attrs  = (*tupledesc).attrs.as_ptr();
-            std::slice::from_raw_parts(attrs, (*tupledesc).natts as usize)    
+            let attrs = (*tupledesc).attrs.as_ptr();
+            std::slice::from_raw_parts(attrs, (*tupledesc).natts as usize)
         }
         #[cfg(not(feature = "postgres-11"))]
         {
             let attrs = (*tupledesc).attrs;
             std::slice::from_raw_parts(*attrs, (*tupledesc).natts as usize)
         }
-        
-
     }
-    
 
     /// Retrieve next row from the result set, or clear tuple slot to indicate
     /// EOF.
