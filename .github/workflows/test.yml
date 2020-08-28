@@ -45,17 +45,51 @@ jobs:
       run: cargo make -p ${{ matrix.version }} install-postgres
 
 
-  ## Run all default oriented feature sets across all platforms.
-  platform-matrix:
+  ## Run all default oriented feature sets across all unix platforms.
+  unix-matrix:
     name: platform
     runs-on: ${{ matrix.os }}
     needs: postgres
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        #os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         feature: [no-default-features, default-features, all-features]
         version: ["v10", "v11", "v12"]
+    steps:
+    - uses: actions/checkout@v1
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - uses: davidB/rust-cargo-make@v1
+      with:
+        version: '0.30.8'
+
+    - name: target/postgres cache
+      uses: actions/cache@v1
+      with:
+        path: target/postgres
+        key: ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-postgres-${{ matrix.version }}-${{ hashFiles('**/Makefile.toml') }}
+
+    - name: cargo make matrix.feature
+      run: cargo make -p ${{ matrix.version }} ${{ matrix.feature }}
+
+  ## Run all default oriented feature sets across all unix platforms.
+  windows-matrix:
+    name: platform
+    runs-on: ${{ matrix.os }}
+    needs: postgres
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        feature: [no-default-features, default-features, all-features]
+        version: ["v10", "v11", "v12"]
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v1
 
