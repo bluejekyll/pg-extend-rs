@@ -11,6 +11,7 @@ use integration_tests::*;
 // FDW tests disabled because it's broken with PostgreSQL 11+.
 // See See https://github.com/bluejekyll/pg-extend-rs/issues/49
 #[test]
+#[ignore] // this test is currently broken
 fn test_fdw() {
     test_in_db("fdw", |mut conn| {
         conn.batch_execute(

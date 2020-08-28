@@ -8,7 +8,7 @@ members = [
     "examples/adding",
 # Examples disabled because FDW support broken with PostgreSQL 11+.
 # See https://github.com/bluejekyll/pg-extend-rs/issues/49
-    "examples/fdw",
+#    "examples/fdw",
 #    "examples/fdw-rw",
     "examples/logging",
     "examples/memory_context",
