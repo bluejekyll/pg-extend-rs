@@ -8,7 +8,7 @@
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, ForeignTableMetadata, OptionMap};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, ForeignTableMetadata};
 use pg_extend::{pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
