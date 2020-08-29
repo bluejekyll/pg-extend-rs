@@ -4,9 +4,12 @@
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
-
+#[cfg(feature = "fdw")]
 extern crate pg_extend;
-
+#[cfg(feature = "fdw")]
 use pg_extend::pg_create_stmt_bin;
-
+#[cfg(feature = "fdw")]
 pg_create_stmt_bin!(DefaultFDW_pg_create_stmt);
+
+#[cfg(not(feature = "fdw"))]
+fn main() {}
