@@ -8,4 +8,4 @@ private = true
 ## Feature profiles
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
-#ALL_FEATURES = "${VER_FEATURES}"
+ALL_FEATURES = "--all-features"

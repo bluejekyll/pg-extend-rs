@@ -62,7 +62,7 @@ fn main() {
         .expect("Couldn't write bindings!");
 
     let feature_version = get_postgres_feature_version(pg_include);
-    println!("cargo:rustc-cfg=feature=\"{}\"", feature_version);
+    println!("cargo:rustc-cfg={}", feature_version);
 }
 
 #[cfg(windows)]
@@ -213,10 +213,10 @@ fn get_postgres_feature_version(pg_include: String) -> &'static str {
     let version = version.split('.').collect::<Vec<_>>();
 
     match &version[..] {
-        ["9", _] => "postgres-9",
-        ["10"] => "postgres-10",
-        ["11"] => "postgres-11",
-        ["12"] => "postgres-12",
+        ["9", _] => "postgres9",
+        ["10"] => "postgres10",
+        ["11"] => "postgres11",
+        ["12"] => "postgres12",
         val => panic!("unknown Postgres version {:?}", val),
     }
 }
