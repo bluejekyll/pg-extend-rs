@@ -6,7 +6,7 @@
 
 // FDW on PostgreSQL 11+ is not supported. :(
 // If anyone tries to enable "fdw" feature with newer Postgres, throw error.
-#![cfg(not(feature = "postgres-12"))]
+#![cfg(not(postgres12))]
 #![cfg(feature = "fdw")]
 
 use std::boxed::Box;
@@ -315,13 +315,13 @@ impl<T: ForeignData> ForeignWrapper<T> {
     }
 
     unsafe fn tupdesc_attrs(tupledesc: &pg_sys::tupleDesc) -> &[pg_sys::FormData_pg_attribute] {
-        #[cfg(feature = "postgres-11")]
+        #[cfg(postgres11)]
         #[allow(clippy::cast_ptr_alignment)]
         {
             let attrs = (*tupledesc).attrs.as_ptr();
             std::slice::from_raw_parts(attrs, (*tupledesc).natts as usize)
         }
-        #[cfg(not(feature = "postgres-11"))]
+        #[cfg(not(postgres11))]
         {
             let attrs = (*tupledesc).attrs;
             std::slice::from_raw_parts(*attrs, (*tupledesc).natts as usize)
@@ -369,14 +369,14 @@ impl<T: ForeignData> ForeignWrapper<T> {
                 };
             }
 
-            #[cfg(feature = "postgres-11")]
+            #[cfg(postgres11)]
             let tuple = pg_sys::heap_form_tuple(
                 tupledesc as *mut _,
                 data.as_mut_slice().as_mut_ptr(),
                 isnull.as_mut_slice().as_mut_ptr(),
             );
 
-            #[cfg(not(feature = "postgres-11"))]
+            #[cfg(not(postgres11))]
             let tuple = pg_sys::heap_form_tuple(
                 tupledesc as *mut _,
                 data.as_mut_slice().as_mut_ptr(),
@@ -605,16 +605,16 @@ impl<T: ForeignData> ForeignWrapper<T> {
             ReScanForeignScan: Some(Self::rescan_foreign_scan),
             EndForeignScan: Some(Self::end_foreign_scan),
 
-            #[cfg(feature = "postgres-11")]
+            #[cfg(postgres11)]
             BeginForeignInsert: None,
-            #[cfg(feature = "postgres-11")]
+            #[cfg(postgres11)]
             EndForeignInsert: None,
-            #[cfg(feature = "postgres-11")]
+            #[cfg(postgres11)]
             ReparameterizeForeignPathByChild: None,
 
-            #[cfg(any(feature = "postgres-10", feature = "postgres-11"))]
+            #[cfg(any(postgres10, postgres11))]
             ShutdownForeignScan: None,
-            #[cfg(any(feature = "postgres-10", feature = "postgres-11"))]
+            #[cfg(any(postgres10, postgres11))]
             ReInitializeDSMForeignScan: None,
 
             GetForeignJoinPaths: None,

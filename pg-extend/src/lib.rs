@@ -60,9 +60,9 @@ macro_rules! pg_magic {
     };
 }
 
-#[cfg(feature = "postgres-12")]
+#[cfg(postgres12)]
 type FunctionCallInfoData = pg_sys::FunctionCallInfoBaseData;
-#[cfg(not(feature = "postgres-12"))]
+#[cfg(not(postgres12))]
 type FunctionCallInfoData = pg_sys::FunctionCallInfoData;
 
 /// Returns an iterator of argument Datums
@@ -72,7 +72,7 @@ pub fn get_args<'a>(
     let num_args = func_call_info.nargs as usize;
 
     // PostgreSQL 12+: Convert from pg_sys::NullableDatum
-    #[cfg(feature = "postgres-12")]
+    #[cfg(postgres12)]
     return unsafe { func_call_info.args.as_slice(num_args) }
         .iter()
         .map(|nullable| {
@@ -84,7 +84,7 @@ pub fn get_args<'a>(
         });
 
     // Older versions store two separate arrays for 'isnull' and datums
-    #[cfg(not(feature = "postgres-12"))]
+    #[cfg(not(postgres12))]
     return {
         let args = &func_call_info.arg[..num_args];
         let args_null = &func_call_info.argnull[..num_args];

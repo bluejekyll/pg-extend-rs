@@ -4,15 +4,6 @@ version = "0.1.0"
 authors = ["Marti Raudsepp <marti@juffo.org"]
 edition = "2018"
 
-[features]
-default = []
-
-fdw = []
-postgres-9 = []
-postgres-10 = []
-postgres-11 = []
-postgres-12 = []
-
 [lib]
 crate-type = ["cdylib"]
 
