@@ -4,13 +4,15 @@
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
+#![cfg(not(feature = "postgres-12"))]
+#![cfg(feature = "fdw")]
 
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
 use pg_extend::pg_alloc::PgAllocator;
 use pg_extend::pg_datum::TryFromPgDatum;
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, Tuple, ForeignTableMetadata};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, ForeignTableMetadata, OptionMap, Tuple};
 use pg_extend::{info, pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 

@@ -11,13 +11,41 @@ use cargo::core::compiler::{Compilation, CompileMode};
 use cargo::util::errors::CargoResult;
 use postgres::{Client, NoTls};
 
+fn get_features() -> Vec<String> {
+    let mut features = vec![];
+
+    #[cfg(feature = "postgres-10")]
+    {
+        features.push("postgres-10".to_string());
+    }
+
+    #[cfg(not(feature = "postgres-11"))]
+    {
+        features.push("postgres-11".to_string());
+    }
+
+    #[cfg(not(feature = "postgres-12"))]
+    {
+        features.push("postgres-12".to_string());
+    }
+
+    #[cfg(feature = "fdw")]
+    {
+        features.push("fdw".to_string());
+    }
+
+    features
+}
+
 pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     println!("building library: {}", name);
+
     let cfg = cargo::util::config::Config::default()?;
 
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
 
+    opts.features = get_features();
     opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
     opts.filter = cargo::ops::CompileFilter::from_raw_arguments(
         true,
@@ -53,6 +81,8 @@ pub fn build_bin(name: &str) -> CargoResult<PathBuf> {
 
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
+
+    opts.features = get_features();
     opts.spec = cargo::ops::Packages::Packages(vec![name.into()]);
     opts.filter = cargo::ops::CompileFilter::from_raw_arguments(
         false,
