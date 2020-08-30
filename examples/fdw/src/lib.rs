@@ -4,11 +4,10 @@
 // http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
-
 extern crate pg_extend;
 extern crate pg_extern_attr;
 
-use pg_extend::pg_fdw::{ForeignData, ForeignRow, OptionMap, ForeignTableMetadata};
+use pg_extend::pg_fdw::{ForeignData, ForeignRow, ForeignTableMetadata, OptionMap};
 use pg_extend::{pg_datum, pg_magic, pg_type};
 use pg_extern_attr::pg_foreignwrapper;
 
