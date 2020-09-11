@@ -39,6 +39,7 @@ IMPORT FOREIGN SCHEMA test
             assert_eq!(row.len(), 1);
             assert_eq!((i + 1) as i32, row.get::<_, i32>(0))
         }
-        conn.batch_execute("DROP FOREIGN DATA WRAPPER defaultfdw CASCADE",).expect("failed to drop defaultdfw");
+        conn.batch_execute("DROP FOREIGN DATA WRAPPER defaultfdw CASCADE")
+            .expect("failed to drop defaultdfw");
     })
 }
