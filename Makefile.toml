@@ -19,13 +19,15 @@ private = true
 [env]
 TARGET_DIR = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target"
 CARGO_MAKE_WORKSPACE_TARGET_DIRECTORY = "${TARGET_DIR}"
+CARGO_MAKE_WORKSPACE_SKIP_MEMBERS = "examples/*"
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
 CARGO_MAKE_KCOV_INSTALLATION_DIRECTORY = "${TARGET_DIR}/kcov"
 CARGO_MAKE_KCOV_DOWNLOAD_DIRECTORY = "${TARGET_DIR}/kcov-dl"
 CARGO_MAKE_KCOV_VERSION = "37"
 
 # This can be overriden (e.g. in pg-extend crate) to specify a more limited set of features
-ALL_FEATURES = "--all-features"
+#   because we use features for enabling different versions of pg, this should not be --all-features in general
+#ALL_FEATURES = ""
 
 # Defaults are all for postgres version 12
 PG_VERSION = { source = "${CARGO_MAKE_PROFILE}", default_value = "12.1", mapping = { v10 = "10.11", v11 = "11.6" }}
@@ -34,7 +36,7 @@ PGSERVICE = { unset = true }
 PGHOST = "/tmp/"
 PGDATABASE = "postgres"
 PSQLRC = "/dev/null" # This ensures that every psql invocation will skip the user's .psqlrc file"
-VER_FEATURES = { source = "${CARGO_MAKE_PROFILE}", default_value = "--features=postgres-12", mapping = { v10 = "--features=postgres-10", v11 = "--features=postgres-11" }}
+ALL_FEATURES = { source = "${CARGO_MAKE_PROFILE}", default_value = "", mapping = { v10 = "--features=fdw", v11 = "--features=fdw" }}
 
 PG_DIR = "${TARGET_DIR}/postgres"
 PG_DL_DIR = "${PG_DIR}"
@@ -306,6 +308,12 @@ description = "Run a quick check on all the crates"
 dependencies = ["install-postgres"]
 command = "cargo"
 args = ["check", "--all-targets", "@@remove-empty(FEATURES)"]
+
+[tasks.doc]
+description = "Run a quick check on all the crates"
+dependencies = ["install-postgres"]
+command = "cargo"
+args = ["doc", "@@remove-empty(FEATURES)"]
 
 [tasks.build]
 description = "Build all the crates"
