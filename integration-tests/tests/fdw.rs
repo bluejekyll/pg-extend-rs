@@ -14,7 +14,6 @@ use integration_tests::*;
 // FDW tests disabled because it's broken with PostgreSQL 11+.
 // See See https://github.com/bluejekyll/pg-extend-rs/issues/49
 #[test]
-#[ignore] // this test is currently broken
 fn test_fdw() {
     test_in_db("fdw", |mut conn| {
         conn.batch_execute(
@@ -40,5 +39,7 @@ IMPORT FOREIGN SCHEMA test
             assert_eq!(row.len(), 1);
             assert_eq!((i + 1) as i32, row.get::<_, i32>(0))
         }
+        conn.batch_execute("DROP FOREIGN DATA WRAPPER defaultfdw CASCADE")
+            .expect("failed to drop defaultdfw");
     })
 }
