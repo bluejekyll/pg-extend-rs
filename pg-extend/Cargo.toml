@@ -32,7 +32,7 @@ postgres-11 = ["fdw"]
 postgres-12 = []
 
 [dependencies]
-cfg-if = "0.1.10"
+cfg-if = "1.0.0"
 
 [build-dependencies]
 bindgen = "0.53"
