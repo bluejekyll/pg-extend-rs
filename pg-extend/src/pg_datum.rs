@@ -11,8 +11,9 @@ use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
+use std::convert::TryInto;
 
-use crate::native::Text;
+use crate::native::{ByteA, Text, VarLenA};
 use crate::pg_alloc::{PgAllocated, PgAllocator};
 use crate::pg_bool;
 use crate::pg_sys::{self, Datum};
@@ -208,6 +209,111 @@ impl<'s> TryFromPgDatum<'s> for String {
 
         cstr.into_string()
             .map_err(|_| "String contained non-utf8 data")
+    }
+}
+
+// FIXME: this impl is copy-pasta'd from that of Text. Could dedup with macro.
+impl<'s> From<ByteA<'s>> for PgDatum<'s> {
+    fn from(value: ByteA<'s>) -> Self {
+        let ptr = unsafe { value.into_ptr() };
+        PgDatum(Some(ptr as Datum), PhantomData)
+    }
+}
+
+// FIXME: this impl is copy-pasta'd from that of Text. Could dedup with macro.
+impl<'s> TryFromPgDatum<'s> for ByteA<'s> {
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        if let Some(datum) = datum.0 {
+            let text_ptr = datum as *const pg_sys::bytea;
+
+            unsafe { Ok(ByteA::from_raw(memory_context, text_ptr as *mut _)) }
+        } else {
+            Err("datum was NULL")
+        }
+    }
+}
+
+impl<'s> TryFromPgDatum<'s> for &[u8] {
+    fn try_from<'mc>(
+        memory_context: &'mc PgAllocator,
+        datum: PgDatum<'mc>,
+    ) -> Result<Self, &'static str>
+    where
+        Self: 's,
+        'mc: 's,
+    {
+        let ba = <ByteA<'mc> as TryFromPgDatum>::try_from(memory_context, datum)?;
+        let v: &[u8] = &ba;
+        // FIXME: transmutes to extend the lifetime to ~ 'mc.
+        //        there is probably a better way to do this?
+        let mv: &[u8] = unsafe{ std::mem::transmute(v) };
+        Ok(mv)
+    }
+}
+
+// :note could just use T: AsRef<[u8]> if specialization existed.
+//       as it is, too many types implement AsRef<[u8]>, so we
+//       manually dispatch to &[u8] impl.
+impl From<Vec<u8>> for PgDatum<'_> {
+    fn from(value: Vec<u8>) -> Self {
+        let v: &[u8] = &value;
+        v.into()
+    }
+}
+
+// maybe macro is overkill.
+macro_rules! _sizeof_varattrib_4b_header { () => { 4 }; }
+
+impl From<&[u8]> for PgDatum<'_> {
+    fn from(value: &[u8]) -> Self {
+        let ptr = unsafe{
+            // :consider should palloc be guard_pg'd?
+            pg_sys::palloc0(value.len() + _sizeof_varattrib_4b_header!()) as *mut u8
+        };
+
+        if ptr.is_null() {
+            // :fixme no alloc; better freak out properly!
+            unimplemented!()
+        }
+
+        // :note vis. alignment, palloc docs says always 4-word aligned.
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                value.as_ptr(),
+                ptr.offset(_sizeof_varattrib_4b_header!()),
+                value.len()
+            );
+        }
+
+        // assign header length
+        // :note assumes little-endian
+        let mut l: u32 = (
+            value.len() + _sizeof_varattrib_4b_header!()
+        ).try_into().unwrap();
+        l &= 0x3fffffff;
+        l <<= 2;
+
+        unsafe {
+            let ptr_len = ptr as *mut u32;
+            *ptr_len = l;
+        }
+
+        debug_assert!(
+            unsafe {
+                let varl = VarLenA::from_varlena(std::mem::transmute(ptr));
+                value.len() == varl.len()
+            },
+            "length mismatch on varlena encoded byte slice."
+        );
+
+        PgDatum(Some(ptr as Datum), PhantomData)
     }
 }
 

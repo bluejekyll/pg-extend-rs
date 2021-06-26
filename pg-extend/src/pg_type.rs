@@ -1,6 +1,6 @@
 //! Postgres type definitions
 
-use crate::native::Text;
+use crate::native::{ByteA, Text};
 
 /// See https://www.postgresql.org/docs/11/xfunc-c.html#XFUNC-C-TYPE-TABLE
 ///
@@ -217,6 +217,24 @@ impl PgTypeInfo for i32 {
 impl PgTypeInfo for i64 {
     fn pg_type() -> PgType {
         PgType::Int8
+    }
+}
+
+impl PgTypeInfo for Vec<u8> {
+    fn pg_type() -> PgType {
+        PgType::ByteA
+    }
+}
+
+impl PgTypeInfo for &[u8] {
+    fn pg_type() -> PgType {
+        PgType::ByteA
+    }
+}
+
+impl PgTypeInfo for ByteA<'_> {
+    fn pg_type() -> PgType {
+        PgType::ByteA
     }
 }
 
