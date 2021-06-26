@@ -23,9 +23,16 @@ fn get_features() -> Vec<String> {
     features
 }
 
+fn configure_cargo() -> CargoResult<cargo::Config> {
+    let mut cfg = cargo::util::config::Config::default()?;
+    cfg.configure(0, None, &None, false, false, true, &None, &[])?;
+
+    Ok(cfg)
+}
+
 pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
     println!("building library: {}", name);
-    let cfg = cargo::util::config::Config::default()?;
+    let cfg = configure_cargo()?;
 
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
@@ -62,7 +69,7 @@ pub fn build_lib(name: &str) -> CargoResult<PathBuf> {
 
 pub fn build_bin(name: &str) -> CargoResult<PathBuf> {
     println!("building binary: {}", name);
-    let cfg = cargo::util::config::Config::default()?;
+    let cfg = configure_cargo()?;
 
     let mut opts = cargo::ops::CompileOptions::new(&cfg, CompileMode::Build)
         .expect("failed to get compile options");
