@@ -211,11 +211,8 @@ fn sql_function_options(arg_types: &[Type]) -> TokenStream {
     quote!(
         {
             let optional_args = [ #( <#arg_types>::is_option() ),* ];
-            if optional_args.iter().all(|&x| x) { "" }
-            else if !optional_args.iter().any(|&x| x) { " STRICT" }
-            else {
-                panic!("Cannot mix Option and non-Option arguments.");
-            }
+            if !optional_args.iter().any(|&x| x) { " STRICT" }
+            else { "" }
         },
     )
 }

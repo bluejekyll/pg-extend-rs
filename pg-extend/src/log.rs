@@ -50,6 +50,7 @@
 //! [`pg_log!`]: ../macro.pg_log.html
 //! [`Level` enum]: enum.Level.html
 
+#[cfg(not(windows))]
 use std::ffi::CString;
 use std::fmt;
 use std::os::raw::{c_char, c_int};
@@ -95,6 +96,29 @@ pub enum Level {
     Fatal = pg_sys::FATAL as isize,
     /// take down the other backends with me
     Panic = pg_sys::PANIC as isize,
+}
+
+impl std::fmt::Display for Level {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let level = match self {
+            Level::Debug5 => "DEBUG5",
+            Level::Debug4 => "DEBUG4",
+            Level::Debug3 => "DEBUG3",
+            Level::Debug2 => "DEBUG2",
+            Level::Debug1 => "DEBUG1",
+            Level::Log => "LOG",
+            #[cfg(not(feature = "postgres-9"))]
+            Level::LogServerOnly => "LOG_SERVER_ONLY",
+            Level::Info => "INFO",
+            Level::Notice => "NOTICE",
+            Level::Warning => "WARNING",
+            Level::Error => "ERROR",
+            Level::Fatal => "FATAL",
+            Level::Panic => "PANIC",
+        };
+
+        write!(f, "{}", level)
+    }
 }
 
 impl From<Level> for c_int {
@@ -207,6 +231,7 @@ macro_rules! pg_log {
 
 // WARNING: this is not part of the crate's public API and is subject to change at any time
 #[doc(hidden)]
+#[cfg(not(windows))]
 pub fn __private_api_log(
     args: fmt::Arguments,
     level: Level,
@@ -240,5 +265,20 @@ pub fn __private_api_log(
                 pg_sys::errfinish(msg_result);
             });
         }
+    }
+}
+
+// TODO: improve logging and figure out a way to deal with side-effects
+#[doc(hidden)]
+#[cfg(windows)]
+pub fn __private_api_log(
+    args: fmt::Arguments,
+    level: Level,
+    &(_module_path, _file, _line): &(*const c_char, *const c_char, u32),
+) {
+    eprintln!("{}:  {}", level, args);
+
+    if level as usize >= Level::Error as usize {
+        panic!("");
     }
 }

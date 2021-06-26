@@ -371,14 +371,14 @@ struct DetoastedArrayWrapper {
 }
 
 impl DetoastedArrayWrapper {
-    unsafe fn detoasted(datum: Datum) -> Result<Self, &'static str> {
+    fn detoasted(datum: Datum) -> Result<Self, &'static str> {
         let datum = datum as *mut pg_sys::varlena;
         if datum.is_null() {
             return Err("datum was NULL");
         }
 
         #[allow(clippy::cast_ptr_alignment)]
-        let arr_type = pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType;
+        let arr_type = unsafe { pg_sys::pg_detoast_datum(datum) as *mut pg_sys::ArrayType };
 
         #[allow(clippy::cast_ptr_alignment)]
         let original_datum = datum as *mut pg_sys::ArrayType;
@@ -395,16 +395,16 @@ impl DetoastedArrayWrapper {
 impl Drop for DetoastedArrayWrapper {
     fn drop(&mut self) {
         if self.arr_type != self.original_datum {
-            unsafe {
-                if !self.arr_type.is_null() {
-                    pg_sys::pfree(self.arr_type as *mut _);
-                }
-                if !self.elements.is_null() {
-                    pg_sys::pfree(self.elements as *mut _);
-                }
-                if !self.nulls.is_null() {
-                    pg_sys::pfree(self.nulls as *mut _);
-                }
+            if !self.arr_type.is_null() {
+                unsafe { pg_sys::pfree(self.arr_type as *mut _) }
+            }
+
+            if !self.elements.is_null() {
+                unsafe { pg_sys::pfree(self.elements as *mut _) }
+            }
+
+            if !self.nulls.is_null() {
+                unsafe { pg_sys::pfree(self.nulls as *mut _) }
             }
         }
     }
@@ -430,25 +430,24 @@ where
         'mc: 's,
     {
         if let Some(datum) = datum.0 {
-            unsafe {
-                let mut detoasted_wrapper = DetoastedArrayWrapper::detoasted(datum)?;
+            let mut detoasted_wrapper = DetoastedArrayWrapper::detoasted(datum)?;
 
-                if (*(detoasted_wrapper.arr_type)).ndim > 1 {
-                    return Err("argument must be empty or one-dimensional array");
-                }
+            if unsafe { (*(detoasted_wrapper.arr_type)).ndim } > 1 {
+                return Err("argument must be empty or one-dimensional array");
+            }
 
-                let mut elmlen: pg_sys::int16 = 0;
-                let mut elmbyval = pgbool!(false);
-                let mut elmalign: ::std::os::raw::c_char = 0;
+            let mut elmlen: pg_sys::int16 = 0;
+            let mut elmbyval = false;
+            let mut elmalign: c_char = 0;
+            let mut nelems = 0;
 
+            let datums = unsafe {
                 pg_sys::get_typlenbyvalalign(
                     (*(detoasted_wrapper.arr_type)).elemtype,
                     &mut elmlen,
                     &mut elmbyval,
                     &mut elmalign,
                 );
-
-                let mut nelems: i32 = 0;
 
                 pg_sys::deconstruct_array(
                     detoasted_wrapper.arr_type,
@@ -461,27 +460,25 @@ where
                     &mut nelems,
                 );
 
-                let datums = std::slice::from_raw_parts(
+                std::slice::from_raw_parts(
                     detoasted_wrapper.elements as *const Datum,
                     nelems as usize,
-                );
+                )
+            };
 
-                // This is where the conversion from `&[Datum]` is done to `&[T]` by a simple type casting,
-                // however, we should use `T::try_cast(&'mc PgAllocator, Datum)` to ignore nulls
-                let mem_size_datums = std::mem::size_of_val(datums);
-                let datums = if mem_size_datums == 0 {
-                    std::slice::from_raw_parts(datums.as_ptr() as *const T, 0)
-                } else {
-                    let mem_size_type = std::mem::size_of::<T>();
-                    assert_eq!(mem_size_datums % mem_size_type, 0);
-                    std::slice::from_raw_parts(
-                        datums.as_ptr() as *const T,
-                        mem_size_datums / mem_size_type,
-                    )
-                };
+            // This is where the conversion from `&[Datum]` is done to `&[T]` by a simple type casting
+            let mem_size_datums = std::mem::size_of_val(datums);
+            let datums = if mem_size_datums == 0 {
+                unsafe { std::slice::from_raw_parts(datums.as_ptr() as *const T, 0) }
+            } else {
+                let mem_size_type = std::mem::size_of::<T>();
+                assert_eq!(mem_size_datums % mem_size_type, 0);
+                let len = mem_size_datums / mem_size_type;
 
-                Ok(datums)
-            }
+                unsafe { std::slice::from_raw_parts(datums.as_ptr() as *const T, len) }
+            };
+
+            Ok(datums)
         } else {
             Err("datum was NULL")
         }
