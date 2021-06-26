@@ -25,3 +25,4 @@
 #include "utils/rel.h"
 #include "utils/lsyscache.h"
 #include "utils/palloc.h"
+#include "utils/memutils.h"
