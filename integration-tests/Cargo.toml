@@ -20,6 +20,6 @@ default = []
 fdw = []
 
 [dependencies]
-cargo = "0.44"
+cargo = "0.59"
 postgres = "0.17"
 tempfile = "3.1"
